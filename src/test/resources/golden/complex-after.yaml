@@ -1,0 +1,43 @@
+%YAML 1.1
+---
+# Documento principale: commenti e valori estranei devono rimanere identici.
+defaults: &defaults
+  retries: 3
+  labels: {owner: "team A", tier: backend}
+app:
+  endpoint: "new-service" # commento in linea
+  timeout: 30s
+  details:
+    literal: |
+      prima riga
+      seconda riga: valore
+    folded: >-
+      testo su due
+      righe
+  env:
+    - name: DB_USERNAME
+      value: "user-to-preserve"
+    - name: DB_PASSWORD
+      value: 'secret-to-preserve'
+credentials:
+  enabled: true
+connections:
+  - <<: *defaults
+    name: primary
+    shared: *defaults
+quotedHelm: "{{ .Values.literal }}"
+numericKey:
+  123: valore
+timestamp: 2026-10-15
+binary: !!binary SGVsbG8=
+---
+# Secondo documento nello stesso file.
+app:
+  endpoint: new-service
+  timeout: 30s
+credentials:
+  enabled: true
+strings:
+  yes: "yes"
+  on: 'on'
+

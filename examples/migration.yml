@@ -1,0 +1,43 @@
+type: specs.openrewrite.org/v1beta/recipe
+name: it.migration.demo.Configurazioni
+displayName: Migrazione dimostrativa delle configurazioni
+description: Aggiorna values e una proprietà condizionata da un altro file, senza ambienti predefiniti.
+recipeList:
+  - it.migration.demo.Valori
+  - it.migration.workbench.recipes.ChangeValueWhenPropertyEquals:
+      conditionFile: config/application.yaml
+      conditionPath: $.security.enabled
+      expectedValue: 'true'
+      targetFiles: deploy/**/values.yaml
+      propertyKey: credentials.enabled
+      newValue: 'true'
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: it.migration.demo.Valori
+displayName: Aggiorna i file values
+description: La precondizione limita i file modificabili senza escludere il file letto dallo scanner.
+preconditions:
+  - org.openrewrite.FindSourceFiles:
+      filePattern: deploy/**/values.yaml
+recipeList:
+  - org.openrewrite.yaml.ChangePropertyValue:
+      propertyKey: app.endpoint
+      newValue: '${migration.endpoint:nuovo.servizio.svc.cluster.local}'
+      relaxedBinding: false
+  - org.openrewrite.yaml.ChangePropertyValue:
+      propertyKey: app.timeout
+      newValue: 30s
+      relaxedBinding: false
+  - org.openrewrite.yaml.DeleteKey:
+      keyPath: $.app.legacyEndpoint
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: it.migration.demo.NessunaModifica
+displayName: Esempio senza modifiche
+description: Il valore precedente non corrisponde e nessun file viene riscritto.
+recipeList:
+  - org.openrewrite.yaml.ChangePropertyValue:
+      propertyKey: app.endpoint
+      oldValue: __valore_inesistente__
+      newValue: immutato
+

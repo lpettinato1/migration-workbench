@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "cli": {
+    "analytics": false
+  },
+  "projects": {
+    "workbench": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist",
+            "index": "src/index.html",
+            "browser": "src/main.ts",
+            "tsConfig": "tsconfig.json",
+            "styles": [
+              "src/styles.css"
+            ],
+            "assets": [],
+            "baseHref": "/",
+            "aot": true
+          },
+          "configurations": {
+            "production": {
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": false
+              },
+              "outputHashing": "none",
+              "sourceMap": false,
+              "extractLicenses": true,
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1MB",
+                  "maximumError": "2MB"
+                }
+              ]
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "buildTarget": "workbench:build"
+          }
+        }
+      }
+    }
+  }
+}

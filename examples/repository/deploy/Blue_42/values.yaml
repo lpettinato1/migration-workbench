@@ -1,0 +1,8 @@
+app:
+  endpoint: vecchio.servizio.svc.cluster.local
+  timeout: 10s
+credentials:
+  enabled: false
+labels:
+  team: esempio
+

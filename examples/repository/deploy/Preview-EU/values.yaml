@@ -1,0 +1,12 @@
+# Ambiente dimostrativo, non elenco degli ambienti ammessi.
+app:
+  endpoint: vecchio.servizio.svc.cluster.local
+  timeout: 10s
+  legacyEndpoint: da-rimuovere
+credentials:
+  enabled: false
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+

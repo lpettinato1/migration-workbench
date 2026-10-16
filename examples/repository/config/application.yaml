@@ -1,0 +1,6 @@
+# Condizione condivisa dal repository: viene letta, non riscritta.
+security:
+  enabled: true
+application:
+  name: example-service
+

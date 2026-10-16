@@ -1,0 +1,27 @@
+<div class="git-preparation">
+  <button class="quiet git-preparation-toggle" [disabled]="disabled || preparing()" [attr.aria-expanded]="opened()" (click)="toggle()">{{opened()?'▾':'▸'}} Branch e cartella di lavoro</button>
+  @if(opened()){
+    <section class="git-prepare-form" [attr.aria-label]="'Preparazione Git per '+root.name">
+      @if(loading()){<p class="muted small" role="status">Lettura dei branch locali e dei riferimenti remoti…</p>}
+      @if(error()){<p class="inline-error" role="alert">{{error()}}</p>}
+      @if(details();as git){
+        <div class="git-prepare-fields">
+          <label><span>Branch o riferimento di partenza</span><input class="mono" [attr.list]="referenceListId" [(ngModel)]="source" [disabled]="disabled || preparing() || confirmation()" autocomplete="off"><datalist [id]="referenceListId">@for(branch of git.branches;track branch){<option [value]="branch"></option>}</datalist></label>
+          <label><span>Nuovo branch di migrazione</span><input class="mono" [(ngModel)]="branch" [disabled]="disabled || preparing() || confirmation()" placeholder="migration/configurazioni" autocomplete="off"></label>
+          <label class="git-worktree-path"><span>Nuova cartella di lavoro</span><input class="mono" [(ngModel)]="worktree" [disabled]="disabled || preparing() || confirmation()" autocomplete="off"><small>Deve essere una cartella nuova, esterna al repository originale.</small></label>
+        </div>
+        <p class="muted small">Remote configurati: {{git.remotes.length?git.remotes.join(', '):'nessuno'}}. I riferimenti elencati sono quelli già disponibili in locale.</p>
+        @if(!confirmation()){
+          <div class="git-prepare-footer"><span class="muted small">Il checkout originale rimane sul suo branch.</span><button class="secondary" [disabled]="disabled || preparing() || !source.trim() || !branch.trim() || !worktree.trim()" (click)="confirmation.set(true)">Prepara la migrazione…</button></div>
+        }@else{
+          <section class="operation-confirmation" role="region" aria-label="Conferma preparazione Git">
+            <h3>Confermi la creazione del branch e della cartella?</h3>
+            <dl><dt>Repository originale</dt><dd>{{root.root}}</dd><dt>Partenza</dt><dd>{{source}}</dd><dt>Nuovo branch</dt><dd>{{branch}}</dd><dt>Cartella di lavoro</dt><dd>{{worktree}}</dd></dl>
+            <p>La cartella selezionata verrà sostituita nell’elenco con il nuovo worktree. L’anteprima precedente verrà invalidata.</p>
+            <div class="confirmation-actions"><button class="quiet" [disabled]="preparing()" (click)="confirmation.set(false)">Annulla</button><button class="primary" [disabled]="disabled || preparing()" (click)="prepare()">{{preparing()?'Preparazione…':'Conferma e prepara'}}</button></div>
+          </section>
+        }
+      }
+    </section>
+  }
+</div>

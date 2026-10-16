@@ -1,0 +1,9 @@
+/target/
+/.build/
+/.idea/
+*.iml
+*.log
+
+/frontend/node_modules/
+/frontend/.angular/
+/frontend/dist/
