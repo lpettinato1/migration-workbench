@@ -1,10 +1,12 @@
 # Migration Workbench 0.3.0
 
-Angular 22 e CodeMirror 6 con motore OpenRewrite Java 21. Questo incremento collega alla GUI preparazione del branch, applicazione, commit e push, mantenendo lo stesso motore della CLI.
+Interfaccia Angular 22 e CodeMirror 6 con OpenRewrite incorporato. GUI e CLI usano lo stesso motore per anteprima, applicazione, commit e push.
 
 ## Avvio e stato del contenitore desktop
 
-Estrarre `target/migration-workbench-0.3.0.zip` e avviare `Avvia.cmd`. Servono Java 21 e Git nel PATH per le operazioni Git; non servono Node, npm, Maven o Gradle sulla VDI. Le librerie e gli asset frontend sono inclusi nel JAR.
+L'artefatto corrente è `target/migration-workbench.jar`: avviarlo da IntelliJ oppure con `java -jar target/migration-workbench.jar`. Le librerie e il frontend sono inclusi, senza download a runtime. Per Git si usa l'installazione della macchina, con configurazione e credenziali esistenti. Non servono Node, npm, Maven o Gradle sulla VDI.
+
+Lo sviluppo e le verifiche usano JDK 26; il bytecode rimane compatibile con Java 21. Quando si riprenderà il confezionamento desktop, il pacchetto includerà JVM 26 e un avvio con un clic. Git portabile è escluso. Il confezionamento è attualmente rinviato.
 
 Il prodotto concordato prevede una finestra con browser incorporato. Il launcher attuale apre ancora il browser di sistema: e un adattatore provvisorio di collaudo e non completa quel requisito. Non e stato introdotto Spring Boot. La logica della migrazione e separata dal trasporto HTTP; la scelta del contenitore desktop e del suo collegamento con Java resta aperta.
 
@@ -12,10 +14,10 @@ Il launcher Java avvia motore e adattatore locale, quindi apre il browser. Non e
 
 ## Flusso disponibile
 
-1. Avviare esplicitamente una nuova migrazione e aggiungere le root locali. Il gruppo facoltativo organizza la review, senza assegnare valori o ricette differenti.
+1. Scegliere la cartella di lavoro unica e avviare la migrazione. Aggiungere poi i repository locali da elaborare. Il gruppo facoltativo organizza la verifica, senza assegnare valori o ricette differenti. Cambiare un'etichetta non richiede di rigenerare l'anteprima.
 2. Per ciascun repository, aprire **Branch e cartella di lavoro**, scegliere il riferimento di partenza, il nuovo branch e una cartella esterna nuova. Confermare la preparazione: la root selezionata viene sostituita con il worktree, mentre il checkout originale mantiene branch e contenuti. I riferimenti disponibili sono quelli presenti in locale, senza fetch automatico.
 3. Caricare o scrivere le ricette YAML, scegliere la composizione e impostare eventuali parametri `migration.*`. Gli ambienti sono arbitrari. Eseguire l'anteprima senza riscrivere gli input.
-4. Controllare diff e contenuti completi. Segnare esplicitamente tutti i file modificati del repository, poi confermare la review dal riepilogo.
+4. Controllare diff e contenuti completi. Segnare esplicitamente tutti i file modificati del repository, poi confermare la verifica dal riepilogo. I segni di verifica rimangono passando alle ricette e tornando allo stesso risultato.
 5. Confermare **Applica le modifiche**: il motore ricontrolla inventario, contenuti, branch e HEAD prima di scrivere. Un'anteprima obsoleta viene rifiutata.
 6. Specificare il messaggio e confermare **Crea il commit**. Vengono inclusi solo i percorsi della migrazione; staging preesistente e modifiche estranee sono rifiutati. Per una cartella senza Git il flusso termina con l'applicazione.
 7. Se si vuole pubblicare, scegliere un remote configurato e confermare **Esegui il push**, dopo aver letto branch e SHA nel riepilogo. Il push e separato dal commit e non usa force.
@@ -64,9 +66,11 @@ cd ..
 .\mvnw.cmd verify
 ```
 
-Il frontend usa un runtime Node locale di sviluppo dichiarato nel suo `package.json`, senza installazioni globali. La build Angular di produzione copia gli asset in `src/main/resources/ui`, incorporati nel JAR dalla build Maven. Questi asset sono inclusi nei sorgenti per poter costruire il solo backend anche senza npm; dopo modifiche al frontend vanno rigenerati.
+Il frontend usa un runtime Node locale dichiarato nel suo `package.json`, senza modificare quello globale. Angular produce `frontend/dist`; Maven incorpora direttamente questi asset nel JAR. Gli asset generati non sono sorgenti e non sono versionati. Eseguire la build frontend prima della prima build Maven e dopo modifiche alla UI. `npm run format` applica la formattazione condivisa.
 
-Le versioni delle dipendenze dirette Java e frontend sono fissate e sono state verificate sui registri pubblici il 16 ottobre 2026. `frontend/package-lock.json` fissa la risoluzione npm. TypeScript usa l'ultima patch 6.0 compatibile con il compilatore Angular 22: TypeScript 7 non è nel suo intervallo supportato. Il runner richiede Java 21.
+Le versioni dirette sono fissate e sono state verificate sui registri pubblici il 16 ottobre 2026. `frontend/package-lock.json` fissa la risoluzione npm. TypeScript usa la patch 6.0 compatibile con Angular 22; non si forza una versione incompatibile per avere un numero più alto.
+
+I test confrontano contenuti attesi espliciti, condizioni fra file, YAML complessi e immutabilità degli input. Le integrazioni avviano il JAR fuori dal progetto ed eseguono preparazione, anteprima, applicazione, commit e push verso remoti Git locali. Non verificano autenticazione Bitbucket, prestazioni su grandi volumi o layout del browser.
 
 ## Confini e compatibilità
 
@@ -79,4 +83,6 @@ Le versioni delle dipendenze dirette Java e frontend sono fissate e sono state v
 - Il servizio UI ascolta solo su loopback e richiede il token del collegamento per le API. La ricetta Java caricata deve essere fidata. Il browser deve aprire il collegamento completo mostrato dal launcher.
 - Git usa configurazione, hook e credenziali disponibili. Nessuna autenticazione Bitbucket o risoluzione automatica di conflitti. Timeout per comando Git: 60 secondi.
 
-Il [piano](docs/implementation-plan.md), le [verifiche del motore](docs/verification.md) e le [verifiche della UI](docs/ui-verification.md) descrivono gli incrementi e i limiti realmente collaudati. Il flusso Git grafico e descritto in [git-ui.md](docs/git-ui.md).
+Il controllo visivo completo resta aperto: il browser di collaudo non raggiunge il servizio loopback, mentre le prove HTTP fra processi Java funzionano. In particolare, il dialogo cartelle viene portato in primo piano e la UI blocca richieste duplicate, ma la sua comparsa da IntelliJ deve essere confermata sulla macchina dell'utente.
+
+Git conserva lo storico delle decisioni e delle verifiche; non si mantengono copie del codice o resoconti per ogni iterazione. Leggere anche [AGENTS.md](AGENTS.md) prima di contribuire.
