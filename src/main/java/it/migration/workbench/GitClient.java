@@ -83,7 +83,26 @@ public final class GitClient {
         byte[] pathspecs = (String.join("\0", allowed) + "\0").getBytes(StandardCharsets.UTF_8);
         Output add = run(root, List.of("add", "--pathspec-from-file=-", "--pathspec-file-nul"), pathspecs);
         if (add.exitCode() != 0) fail(add);
-        checked(root, "commit", "-m", message);
+        String staged = checked(root, "diff", "--cached", "--raw", "--no-abbrev", "--no-renames", "-z");
+        for (String path : checked(root, "diff", "--cached", "--name-only", "--no-renames", "-z").split("\0")) {
+            if (!path.isEmpty() && !allowed.contains(path))
+                throw new WorkbenchException("L'indice contiene nuove modifiche estranee. Nessun commit eseguito; lo staging è stato mantenuto.");
+        }
+        Output commit = run(root, List.of("commit", "-m", message), null);
+        if (commit.exitCode() != 0) {
+            String recovery;
+            try {
+                requireSameHead(report, snapshot(root));
+                if (!staged.equals(checked(root, "diff", "--cached", "--raw", "--no-abbrev", "--no-renames", "-z")))
+                    throw new WorkbenchException("L'indice è cambiato durante il commit.");
+                Output reset = run(root, List.of("reset", "--quiet", report.git().head(), "--pathspec-from-file=-", "--pathspec-file-nul"), pathspecs);
+                if (reset.exitCode() != 0) fail(reset);
+                recovery = "Lo staging di questa operazione è stato rimosso. I contenuti dei file sono rimasti intatti.";
+            } catch (IOException | WorkbenchException failure) {
+                recovery = "Non è stato possibile confermare il ripristino dello staging: " + failure.getMessage() + " Verificare lo stato Git prima di riprovare.";
+            }
+            fail(new Output(commit.exitCode(), commit.text().strip() + "\n" + recovery));
+        }
         return checked(root, "rev-parse", "HEAD").strip();
     }
 
@@ -126,8 +145,6 @@ public final class GitClient {
         List<String> command = new ArrayList<>(List.of("git", "--no-pager", "-C", root.toString()));
         command.addAll(arguments);
         ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
-        builder.environment().put("GIT_TERMINAL_PROMPT", "0");
-        builder.environment().put("GCM_INTERACTIVE", "Never");
         builder.environment().put("GIT_LITERAL_PATHSPECS", "1");
         builder.environment().put("GIT_OPTIONAL_LOCKS", "0");
         Process process = builder.start();

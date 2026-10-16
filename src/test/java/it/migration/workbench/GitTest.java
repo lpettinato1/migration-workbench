@@ -59,7 +59,33 @@ class GitTest extends TestWorkspace {
         assertTrue(git.checked(root, "diff", "--cached", "--name-only").isEmpty());
         Files.delete(root.resolve("unrelated.txt"));
         git.checked(root, "add", "deploy/Blue_42/values.yaml");
+        String staged = git.checked(root, "diff", "--cached", "--raw", "--no-abbrev", "-z");
         assertThrows(WorkbenchException.class, () -> git.commit(report, "Migration"));
+        assertEquals(staged, git.checked(root, "diff", "--cached", "--raw", "--no-abbrev", "-z"));
+    }
+
+    @Test void rejectedCommitRestoresOnlyItsStagingAndAllowsRetryWithoutChangingFiles() throws Exception {
+        Path root = repository("rejected-commit");
+        var report = service.preview(request(root));
+        service.apply(report);
+        var appliedFiles = WorkspaceFiles.inventory(root);
+        git.checked(root, "config", "user.name", "");
+        git.checked(root, "config", "user.email", "");
+
+        WorkbenchException failure = assertThrows(WorkbenchException.class, () -> git.commit(report, "Migration"));
+        assertTrue(failure.getMessage().contains("Lo staging di questa operazione è stato rimosso"), failure.getMessage());
+        assertEquals(report.git().head(), git.snapshot(root).head());
+        assertTrue(git.checked(root, "diff", "--cached", "--name-only").isEmpty());
+        assertEquals(appliedFiles, WorkspaceFiles.inventory(root));
+        assertEquals(EXPECTED, Files.readString(root.resolve("deploy/Blue_42/values.yaml")));
+
+        git.checked(root, "config", "user.name", "Migration Tests");
+        git.checked(root, "config", "user.email", "migration-tests@example.invalid");
+        String commit = git.commit(report, "Migration after identity correction");
+        assertNotEquals(report.git().head(), commit);
+        assertEquals(commit, git.snapshot(root).head());
+        assertTrue(git.snapshot(root).status().isEmpty());
+        assertEquals(appliedFiles, WorkspaceFiles.inventory(root));
     }
 
     @Test void applyRejectsDirtyGitEvenForUnrelatedNonYamlChanges() throws Exception {

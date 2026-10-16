@@ -17,11 +17,14 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 import javax.swing.JFileChooser;
+import javax.swing.JDialog;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.GraphicsEnvironment;
+import java.awt.Component;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +47,11 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Adapter HTTP locale: stato della sessione solo in memoria, stesso motore della CLI. */
 public final class LocalUiServer implements AutoCloseable {
     private static final int BODY_LIMIT = WorkspaceFiles.MAX_FILE_BYTES;
+    private static final Map<String, String> CONTENT_TYPES = Map.of(
+            "html", "text/html; charset=utf-8", "js", "text/javascript; charset=utf-8",
+            "css", "text/css; charset=utf-8", "json", "application/json; charset=utf-8",
+            "svg", "image/svg+xml", "png", "image/png", "ico", "image/x-icon",
+            "woff", "font/woff", "woff2", "font/woff2");
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private final HttpServer server;
     private final Path baseDirectory;
@@ -120,9 +128,7 @@ public final class LocalUiServer implements AutoCloseable {
             respondSafely(exchange, failure.reason() == UiGitWorkflow.Reason.NOT_FOUND ? 404 : 409, failure.getMessage());
         } catch (HttpFailure failure) {
             respondSafely(exchange, failure.status, failure.getMessage());
-        } catch (WorkbenchException | IllegalArgumentException failure) {
-            respondSafely(exchange, 400, readable(failure));
-        } catch (IOException failure) {
+        } catch (WorkbenchException | IllegalArgumentException | IOException failure) {
             respondSafely(exchange, 400, readable(failure));
         } catch (Exception failure) {
             respondSafely(exchange, 500, "Operazione non riuscita: " + readable(failure));
@@ -131,26 +137,24 @@ public final class LocalUiServer implements AutoCloseable {
 
     private void api(HttpExchange exchange, String path) throws Exception {
         String method = exchange.getRequestMethod();
-        if (!List.of("/api/bootstrap", "/api/inspect", "/api/rules", "/api/catalog", "/api/preview", "/api/pick", "/api/git/details", "/api/git/prepare").contains(path) && !path.startsWith("/api/jobs/"))
+        if (!List.of("/api/bootstrap", "/api/workspace", "/api/inspect", "/api/rules", "/api/catalog", "/api/preview", "/api/pick", "/api/git/details", "/api/git/prepare").contains(path) && !path.startsWith("/api/jobs/"))
             throw new HttpFailure(404, "Operazione non disponibile.");
         if (path.startsWith("/api/jobs/")) { jobApi(exchange, path); return; }
         if (method.equals("GET") && path.equals("/api/bootstrap")) {
-            Path exampleRoot = baseDirectory.resolve("examples/repository");
-            Path exampleRules = baseDirectory.resolve("examples/migration.yml");
             respond(exchange, 200, Map.of("toolVersion", Preview.TOOL_VERSION, "engineVersion", Preview.ENGINE_VERSION,
-                    "baseDirectory", baseDirectory.toString(), "exampleRoot", Files.isDirectory(exampleRoot) ? exampleRoot.toString() : "",
-                    "exampleRules", Files.isRegularFile(exampleRules) ? exampleRules.toString() : "", "exampleRecipe", "it.migration.demo.Configurazioni"));
+                    "baseDirectory", baseDirectory.toString()));
         } else if (method.equals("POST")) {
             JsonNode body = body(exchange);
             switch (path) {
+                case "/api/workspace" -> respond(exchange, 200, Map.of("path", WorkspaceFiles.root(text(body, "path")).toString()));
                 case "/api/inspect" -> {
                     Path root = WorkspaceFiles.root(text(body, "root"));
                     respond(exchange, 200, inspect(root));
                 }
-                case "/api/git/details" -> respond(exchange, 200, new GitClient().details(WorkspaceFiles.root(text(body, "root"))));
+                case "/api/git/details" -> respond(exchange, 200, new GitClient().details(Path.of(text(body, "root"))));
                 case "/api/git/prepare" -> {
                     confirmed(body);
-                    Path repository = WorkspaceFiles.root(text(body, "repository"));
+                    Path repository = Path.of(text(body, "repository"));
                     String source = text(body, "source"), branch = text(body, "branch");
                     Path worktree = Path.of(text(body, "worktree"));
                     synchronized (jobs) { requireIdle(); mutating = true; }
@@ -175,7 +179,14 @@ public final class LocalUiServer implements AutoCloseable {
                     finally { Files.deleteIfExists(temporary); }
                 }
                 case "/api/preview" -> respond(exchange, 202, Map.of("id", submit(body)));
-                case "/api/pick" -> respond(exchange, 200, pick(text(body, "kind")));
+                case "/api/pick" -> {
+                    JsonNode directory = body.get("directory");
+                    if (directory != null && !directory.isNull() && !directory.isTextual())
+                        throw new WorkbenchException("La cartella iniziale deve essere un percorso testuale.");
+                    Path initial = directory == null || directory.isNull() || directory.textValue().isBlank()
+                            ? baseDirectory : WorkspaceFiles.root(directory.textValue());
+                    respond(exchange, 200, pick(text(body, "kind"), initial));
+                }
                 default -> throw new HttpFailure(404, "Operazione non disponibile.");
             }
         } else throw new HttpFailure(405, "Metodo HTTP non consentito.");
@@ -351,7 +362,7 @@ public final class LocalUiServer implements AutoCloseable {
         return List.copyOf(names);
     }
 
-    private Map<String, Object> pick(String kind) throws Exception {
+    private Map<String, Object> pick(String kind, Path directory) throws Exception {
         if (!kind.equals("directory") && !kind.equals("rules")) throw new WorkbenchException("Tipo di selezione non valido.");
         if (GraphicsEnvironment.isHeadless()) throw new WorkbenchException("La selezione grafica non è disponibile. Inserire il percorso nella casella.");
         if (!pickerOpen.compareAndSet(false, true)) throw new HttpFailure(409, "È già aperta una finestra di selezione.");
@@ -360,7 +371,13 @@ public final class LocalUiServer implements AutoCloseable {
             SwingUtilities.invokeAndWait(() -> {
                 try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); }
                 catch (Exception ignored) { /* Il selettore resta disponibile con il tema Swing. */ }
-                JFileChooser chooser = new JFileChooser(baseDirectory.toFile());
+                JFileChooser chooser = new JFileChooser(directory.toFile()) {
+                    @Override protected JDialog createDialog(Component parent) {
+                        JDialog dialog = super.createDialog(parent);
+                        dialog.setAlwaysOnTop(true);
+                        return dialog;
+                    }
+                };
                 chooser.setDialogTitle(kind.equals("directory") ? "Seleziona repository o cartella" : "Apri ricette YAML");
                 chooser.setFileSelectionMode(kind.equals("directory") ? JFileChooser.DIRECTORIES_ONLY : JFileChooser.FILES_ONLY);
                 if (kind.equals("rules")) chooser.setFileFilter(new FileNameExtensionFilter("Ricette YAML", "yml", "yaml"));
@@ -394,11 +411,7 @@ public final class LocalUiServer implements AutoCloseable {
         try (var input = getClass().getResourceAsStream(name)) {
             if (input == null) { respond(exchange, 404, Map.of("error", "Interfaccia non presente nel pacchetto.")); return; }
             byte[] bytes = input.readAllBytes();
-            String contentType = name.endsWith(".js") ? "text/javascript; charset=utf-8" : name.endsWith(".css") ? "text/css; charset=utf-8" :
-                    name.endsWith(".html") ? "text/html; charset=utf-8" : name.endsWith(".json") ? "application/json; charset=utf-8" :
-                    name.endsWith(".svg") ? "image/svg+xml" : name.endsWith(".png") ? "image/png" : name.endsWith(".ico") ? "image/x-icon" :
-                    name.endsWith(".woff2") ? "font/woff2" : "font/woff";
-            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.getResponseHeaders().set("Content-Type", CONTENT_TYPES.get(name.substring(name.lastIndexOf('.') + 1)));
             exchange.sendResponseHeaders(200, bytes.length);
             exchange.getResponseBody().write(bytes);
         }
@@ -417,6 +430,7 @@ public final class LocalUiServer implements AutoCloseable {
     }
 
     private static String readable(Throwable failure) {
+        while (failure instanceof InvocationTargetException && failure.getCause() != null) failure = failure.getCause();
         return failure.getMessage() == null || failure.getMessage().isBlank() ? failure.getClass().getSimpleName() : failure.getMessage();
     }
 

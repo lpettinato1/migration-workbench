@@ -101,9 +101,9 @@ class UiStandaloneIT extends TestWorkspace {
 
             JsonNode bootstrap = readOk(get(client, base.resolve("/api/bootstrap"), token));
             assertEquals(runner.toRealPath().toString(), bootstrap.path("baseDirectory").asText());
-            assertEquals(root.toRealPath().toString(), bootstrap.path("exampleRoot").asText());
-            assertEquals(rules.toRealPath().toString(), bootstrap.path("exampleRules").asText());
-            assertEquals(RECIPE, bootstrap.path("exampleRecipe").asText());
+            assertFalse(bootstrap.has("exampleRoot"));
+            assertFalse(bootstrap.has("exampleRules"));
+            assertFalse(bootstrap.has("exampleRecipe"));
             JsonNode loaded = readOk(post(client, base.resolve("/api/rules"), token, Map.of("path", rules.toString())));
             assertEquals(Files.readString(RULES), loaded.path("yaml").asText());
             HttpResponse<String> submitted = post(client, base.resolve("/api/preview"), token, Map.of(

@@ -35,7 +35,6 @@ public final class UiGitWorkflow {
     public synchronized boolean hasAppliedGit() {
         return operations.values().stream().anyMatch(operation -> operation.report.git() != null && operation.state.stage().equals("APPLIED"));
     }
-    public synchronized boolean pendingPush() { return operations.values().stream().anyMatch(operation -> operation.state.stage().equals("COMMITTED")); }
 
     public synchronized void invalidateReview() {
         reviewInvalidated = true;

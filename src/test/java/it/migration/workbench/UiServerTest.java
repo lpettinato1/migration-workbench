@@ -99,7 +99,7 @@ class UiServerTest extends TestWorkspace {
             assertFalse(bootstrap.path("toolVersion").asText().isBlank());
             assertFalse(bootstrap.path("engineVersion").asText().isBlank());
             assertEquals(Path.of("").toRealPath().toString(), bootstrap.path("baseDirectory").asText());
-            assertEquals(RECIPE, bootstrap.path("exampleRecipe").asText());
+            assertFalse(bootstrap.has("exampleRecipe"));
             assertFalse(server.token().isBlank());
             assertTrue(server.launchUri().getFragment().contains(server.token()));
         }
@@ -155,6 +155,24 @@ class UiServerTest extends TestWorkspace {
             rules.path("names").forEach(name -> names.add(name.asText()));
             assertEquals(List.of(RECIPE, "it.migration.demo.Valori", "it.migration.demo.NessunaModifica"), names);
         }
+    }
+
+    @Test void workspaceValidatesOnlyTheCanonicalDirectoryWithoutInspectingGitOrYaml() throws Exception {
+        Path workspace = Files.createDirectory(temporary.resolve("cartella migrazione"));
+        Files.writeString(workspace.resolve("broken.yaml"), "items: [non chiuso\n");
+        Files.writeString(workspace.resolve(".git"), "gitdir: directory-che-non-esiste\n");
+        try (LocalUiServer server = server()) {
+            JsonNode selected = postOk(server, "/api/workspace", Map.of("path", workspace.resolve(".").toString()));
+            assertEquals(json.valueToTree(Map.of("path", workspace.toRealPath().toString())), selected);
+            for (String invalid : List.of("", workspace.resolve("assente").toString(), workspace.resolve("broken.yaml").toString())) {
+                HttpResponse<String> response = post(server, "/api/workspace", Map.of("path", invalid));
+                assertEquals(400, response.statusCode(), response.body());
+                assertFalse(json.readTree(response.body()).path("error").asText().isBlank());
+            }
+            assertEquals(401, exchange(server, "POST", "/api/workspace", Map.of("path", workspace.toString()), null, null).statusCode());
+        }
+        assertEquals("items: [non chiuso\n", Files.readString(workspace.resolve("broken.yaml")));
+        assertFalse(Files.exists(workspace.resolve("assente")));
     }
 
     @Test void descriptorIncludesNestedRecipesAndCustomOptionsWithoutSerializationErrors() throws Exception {

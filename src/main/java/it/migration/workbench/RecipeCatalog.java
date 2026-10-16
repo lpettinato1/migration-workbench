@@ -58,34 +58,27 @@ public final class RecipeCatalog {
 
     private Object resolve(Object value, Map<String, String> parameters, IdentityHashMap<Object, Boolean> ancestors) {
         if (value instanceof String text) {
-            Matcher matcher = PARAMETER.matcher(text);
-            StringBuilder result = new StringBuilder();
-            while (matcher.find()) {
-                String replacement = parameters.getOrDefault(matcher.group(1), matcher.group(2));
-                if (replacement == null) throw new WorkbenchException("Parametro mancante: " + matcher.group(1));
-                matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
-            }
-            matcher.appendTail(result);
-            return result.toString();
+            return PARAMETER.matcher(text).replaceAll(match -> {
+                String replacement = parameters.getOrDefault(match.group(1), match.group(2));
+                if (replacement == null) throw new WorkbenchException("Parametro mancante: " + match.group(1));
+                return Matcher.quoteReplacement(replacement);
+            });
         }
-        if (value instanceof Map<?, ?> map) {
-            if (ancestors.put(value, true) != null) throw new WorkbenchException("Riferimento circolare nella configurazione delle ricette.");
-            Map<String, Object> resolved = new LinkedHashMap<>();
-            for (var entry : map.entrySet()) {
-                if (!(entry.getKey() instanceof String key)) throw new WorkbenchException("Le opzioni delle ricette devono avere nomi testuali.");
-                resolved.put(key, resolve(entry.getValue(), parameters, ancestors));
+        if (!(value instanceof Map<?, ?>) && !(value instanceof List<?>)) return value;
+        if (ancestors.put(value, true) != null) throw new WorkbenchException("Riferimento circolare nella configurazione delle ricette.");
+        try {
+            if (value instanceof Map<?, ?> map) {
+                Map<String, Object> resolved = new LinkedHashMap<>();
+                for (var entry : map.entrySet()) {
+                    if (!(entry.getKey() instanceof String key)) throw new WorkbenchException("Le opzioni delle ricette devono avere nomi testuali.");
+                    resolved.put(key, resolve(entry.getValue(), parameters, ancestors));
+                }
+                return resolved;
             }
-            ancestors.remove(value);
-            return resolved;
-        }
-        if (value instanceof List<?> list) {
-            if (ancestors.put(value, true) != null) throw new WorkbenchException("Riferimento circolare nella configurazione delle ricette.");
             List<Object> resolved = new ArrayList<>();
-            for (Object item : list) resolved.add(resolve(item, parameters, ancestors));
-            ancestors.remove(value);
+            for (Object item : (List<?>) value) resolved.add(resolve(item, parameters, ancestors));
             return resolved;
-        }
-        return value;
+        } finally { ancestors.remove(value); }
     }
 }
 
