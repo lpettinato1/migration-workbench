@@ -378,7 +378,7 @@ public final class LocalUiServer implements AutoCloseable {
                         return dialog;
                     }
                 };
-                chooser.setDialogTitle(kind.equals("directory") ? "Seleziona repository o cartella" : "Apri ricette YAML");
+                chooser.setDialogTitle(kind.equals("directory") ? "Seleziona una cartella" : "Apri ricette YAML");
                 chooser.setFileSelectionMode(kind.equals("directory") ? JFileChooser.DIRECTORIES_ONLY : JFileChooser.FILES_ONLY);
                 if (kind.equals("rules")) chooser.setFileFilter(new FileNameExtensionFilter("Ricette YAML", "yml", "yaml"));
                 if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chosen.set(chooser.getSelectedFile().getAbsolutePath());

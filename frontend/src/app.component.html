@@ -1,67 +1,490 @@
 <header class="topbar">
-  <a class="brand" href="/" [attr.aria-disabled]="configurationLocked()" (click)="$event.preventDefault(); stage()!=='welcome' && navigate('repositories')"><span class="brand-mark" aria-hidden="true">⇄</span> Migration Workbench</a>
+  <a
+    class="brand"
+    href="/"
+    [attr.aria-disabled]="configurationLocked()"
+    (click)="$event.preventDefault(); stage() !== 'welcome' && navigate('repositories')"
+    ><span class="brand-mark" aria-hidden="true">⇄</span> Migration Workbench</a
+  >
   <span class="top-tag">OPENREWRITE</span>
   <span class="top-spacer"></span>
-  @if(bootstrap(); as info){<span class="version">{{info.toolVersion}} <span class="dot-divider">·</span> motore {{info.engineVersion}}</span>}
-  @if(stage()!=='welcome'){<button class="quiet" [disabled]="configurationLocked()" (click)="newSession()">Nuova migrazione</button>}
+  @if (bootstrap(); as info) {
+    <span class="version"
+      >{{ info.toolVersion }} <span class="dot-divider">·</span> motore
+      {{ info.engineVersion }}</span
+    >
+  }
+  @if (stage() !== 'welcome') {
+    <button class="quiet" [disabled]="configurationLocked()" (click)="newSession()">
+      Nuova migrazione
+    </button>
+  }
 </header>
-@if(error()){<div class="message error" role="alert"><span>!</span><div>{{error()}}</div><button aria-label="Chiudi messaggio di errore" (click)="error.set('')">×</button></div>}
-@if(notice()){<div class="message info" role="status"><span>i</span><div>{{notice()}}</div><button aria-label="Chiudi messaggio" (click)="notice.set('')">×</button></div>}
-@if(stage()==='welcome'){
+@if (error()) {
+  <div class="message error" role="alert">
+    <span>!</span>
+    <div>{{ error() }}</div>
+    <button aria-label="Chiudi messaggio di errore" (click)="error.set('')">×</button>
+  </div>
+}
+@if (notice()) {
+  <div class="message info" role="status">
+    <span>i</span>
+    <div>{{ notice() }}</div>
+    <button aria-label="Chiudi messaggio" (click)="notice.set('')">×</button>
+  </div>
+}
+@if (stage() === 'welcome') {
   <main class="welcome">
-    <div class="welcome-emblem" aria-hidden="true">⇄</div>
-    <span class="eyebrow">IL TUO SPAZIO DI MIGRAZIONE</span>
-    <h1>Dalle ricette alle modifiche.<br>Con tutto sotto controllo.</h1>
-    <p>Seleziona i repository, componi le regole e verifica le differenze prima di applicarle.</p>
-    <div class="welcome-actions"><button class="primary large" [disabled]="!bootstrap()" (click)="begin()">Nuova migrazione <span aria-hidden="true">→</span></button><button class="secondary large" [disabled]="!bootstrap() || loading()" (click)="example()">Apri l’esempio locale</button></div>
-    <div class="welcome-features"><div><strong>01 <span>Repository locali</span></strong><p>Una o più cartelle, con il branch Git sempre visibile.</p></div><div><strong>02 <span>Regole e parametri</span></strong><p>Ricette OpenRewrite, valori riutilizzabili e YAML modificabile.</p></div><div><strong>03 <span>Anteprima e review</span></strong><p>Diff per file, documento completo e report esportabile.</p></div></div>
-    <p class="welcome-note"><span class="status-dot"></span> Tutto resta sul tuo computer. La sessione vive in memoria.</p>
+    <h1>Nuova migrazione</h1>
+    <p>Scegli la cartella di lavoro in cui preparare i repository e i branch della migrazione.</p>
+    <section class="panel root-input">
+      <label for="work-path">Cartella di lavoro</label>
+      <div class="input-row">
+        <input
+          id="work-path"
+          class="mono"
+          [ngModel]="workPath()"
+          (ngModelChange)="workPath.set($event)"
+          [disabled]="loading() || picking()"
+          placeholder="C:\migrazioni"
+          (keydown.enter)="begin()"
+        />
+        <button
+          class="secondary"
+          [disabled]="!bootstrap() || loading() || picking()"
+          (click)="pick('workspace')"
+        >
+          {{ picking() ? 'Selezione aperta…' : 'Sfoglia…' }}
+        </button>
+      </div>
+      <p class="help">
+        Una cartella unica per il lavoro della sessione. I repository da elaborare si scelgono nel
+        passaggio successivo.
+      </p>
+    </section>
+    <div class="welcome-actions">
+      <button
+        class="primary large"
+        [disabled]="!bootstrap() || loading() || picking() || !workPath().trim()"
+        (click)="begin()"
+      >
+        {{ loading() ? 'Verifica cartella…' : 'Inizia migrazione' }}
+        <span aria-hidden="true">→</span>
+      </button>
+    </div>
+    <p class="welcome-note">
+      <span class="status-dot"></span> Tutto resta sul tuo computer. La sessione vive in memoria.
+    </p>
   </main>
 } @else {
   <nav class="journey" aria-label="Passaggi della migrazione">
-    <button [class.current]="stage()==='configure' && pane()==='repositories'" [disabled]="configurationLocked()" (click)="navigate('repositories')"><span class="stage-number">1</span> Repository <span class="count">{{roots().length}}</span></button><span aria-hidden="true">›</span>
-    <button [class.current]="stage()==='configure' && pane()==='recipes'" [disabled]="configurationLocked()" (click)="navigate('recipes')"><span class="stage-number">2</span> Ricette e parametri</button><span aria-hidden="true">›</span>
-    <button [class.current]="stage()==='review'" [disabled]="operationBusy() || job()?.status!=='COMPLETED'" (click)="stage.set('review')"><span class="stage-number">3</span> Review</button>
-    <span class="top-spacer"></span><span class="session-label">Sessione locale <span class="status-dot"></span></span>
+    <button
+      [class.current]="stage() === 'configure' && pane() === 'repositories'"
+      [disabled]="configurationLocked()"
+      (click)="navigate('repositories')"
+    >
+      <span class="stage-number">1</span> Repository
+      <span class="count">{{ roots().length }}</span></button
+    ><span aria-hidden="true">›</span>
+    <button
+      [class.current]="stage() === 'configure' && pane() === 'recipes'"
+      [disabled]="configurationLocked()"
+      (click)="navigate('recipes')"
+    >
+      <span class="stage-number">2</span> Ricette e parametri</button
+    ><span aria-hidden="true">›</span>
+    <button
+      [class.current]="stage() === 'review'"
+      [disabled]="operationBusy() || job()?.status !== 'COMPLETED'"
+      (click)="stage.set('review')"
+    >
+      <span class="stage-number">3</span> Verifica
+    </button>
+    <span class="top-spacer"></span
+    ><span class="session-label" [title]="workDirectory()">{{ workDirectory() }}</span>
   </nav>
-  @if(stage()==='configure'){
-    <main class="configuration"><fieldset class="configuration-fields" [disabled]="configurationLocked()">
-      @if(pane()==='repositories'){
-        <section class="page-heading"><div><span class="eyebrow">01 / REPOSITORY</span><h1>Su cosa lavoriamo?</h1><p>Aggiungi le cartelle da analizzare. Il contenuto originale resterà intatto durante l’anteprima.</p></div><button class="secondary" [disabled]="loading()" (click)="pick('directory')">Sfoglia cartelle…</button></section>
-        <section class="panel root-input"><label for="root-path">Percorso del repository o della cartella</label><div class="input-row"><input id="root-path" class="mono" [ngModel]="rootPath()" (ngModelChange)="rootPath.set($event)" placeholder="C:\workspace\nome-repository" (keydown.enter)="addRoot()"><button class="primary" [disabled]="loading() || !rootPath().trim()" (click)="addRoot()">{{loading()?'Verifica…':'Aggiungi'}}</button></div><p class="help">La ricerca considera i file .yaml e .yml. Le cartelle Git annidate vengono escluse.</p></section>
-        <section class="panel repository-panel"><div class="panel-heading"><h2>Cartelle selezionate <span class="count">{{roots().length}}</span></h2><span class="muted small">Il gruppo è un’etichetta facoltativa per la review.</span></div>
-          @if(!roots().length){<div class="empty"><span aria-hidden="true">▱</span><h3>Nessun repository selezionato</h3><p>Inserisci un percorso o seleziona una cartella dal tuo computer.</p></div>}
-          @for(root of roots(); track root.root){<article class="repository-row"><div class="repository-symbol" aria-hidden="true">⌘</div><div class="repository-info"><h3>{{root.name}}</h3><p class="mono path">{{root.root}}</p><div class="repository-meta">@if(root.git){<span class="branch">⑂ {{root.git.branch || 'HEAD detached'}}</span><span class="mono small">{{root.git.head.slice(0,8)}}</span>@if(root.git.status){<span class="badge warning">Modifiche locali</span>}@else{<span class="badge neutral">Git pulito</span>}}@else{<span class="badge neutral">Cartella senza Git</span>}<span>{{root.yamlFiles.length}} file YAML</span></div></div><label class="group-field"><span>Gruppo logico</span><input [ngModel]="root.group" (ngModelChange)="changeGroup(root.root,$event)" placeholder="Es. Servizi anagrafici" [attr.aria-label]="'Gruppo di '+root.name"></label><button class="icon-button" [attr.aria-label]="'Rimuovi '+root.name" (click)="removeRoot(root.root)">×</button>@if(root.git){<mw-git-preparation class="repository-git-setup" [root]="root" [disabled]="configurationLocked() || loading() || busy()" (busyChange)="operationBusy.set($event)" (prepared)="preparedRoot(root.root,$event)"/>}</article>}
-        </section>
-        <footer class="page-footer"><p class="muted">Puoi preparare un nuovo branch in una cartella separata per ogni repository Git.</p><button class="primary" [disabled]="!roots().length" (click)="navigate('recipes')">Configura le ricette <span aria-hidden="true">→</span></button></footer>
-      } @else {
-        <section class="page-heading"><div><span class="eyebrow">02 / RICETTE</span><h1>Componi la migrazione</h1><p>Una ricetta comune alle {{roots().length}} cartelle selezionate, con parametri dal nome libero.</p></div><button class="secondary" [disabled]="!yaml()" (click)="saveRules()">Esporta ricette YAML</button></section>
-        <section class="panel rules-source"><div class="input-row"><label class="grow"><span>File delle ricette</span><input class="mono" [ngModel]="rulesPath()" (ngModelChange)="rulesPath.set($event)" placeholder="C:\migrazioni\recipes.yml" (keydown.enter)="loadRules()"></label><button class="secondary" [disabled]="loading()" (click)="pick('rules')">Sfoglia…</button><button class="secondary" [disabled]="loading() || !rulesPath().trim()" (click)="loadRules()">Carica</button><label class="recipe-selector"><span>Ricetta da eseguire</span><select [ngModel]="recipe()" (ngModelChange)="setRecipe($event)" [disabled]="!parsed().names.length"><option value="">Seleziona una ricetta</option>@for(name of parsed().names;track name){<option [value]="name">{{name}}</option>}</select></label></div></section>
-        <section class="recipe-workspace panel">
-          <aside class="recipe-outline"><div class="panel-heading"><h2>Passaggi</h2><span class="count">{{steps().length}}</span></div><p class="outline-caption">{{recipe() || 'Carica o scrivi una ricetta'}}</p>
-            @for(step of steps();track step.id){<button class="step-item" [class.selected]="selectedStep().id===step.id" (click)="selectedStepId.set(step.id); recipeTab.set('guided')"><span class="step-number">{{$index+1}}</span><span><strong>{{step.name.split('.').pop()}}</strong><small>{{step.name}}</small></span></button>}
-            @if(!steps().length){<p class="empty-caption">I passaggi della ricetta selezionata compariranno qui.</p>}
-            <div class="outline-foot"><span class="status-dot"></span> Ordine di esecuzione dall’alto</div>
-          </aside>
-          <section class="recipe-detail"><div class="tabs" role="tablist" aria-label="Visualizzazione delle ricette"><button role="tab" [attr.aria-selected]="recipeTab()==='guided'" (click)="recipeTab.set('guided')">Composizione guidata</button><button role="tab" [attr.aria-selected]="recipeTab()==='yaml'" (click)="recipeTab.set('yaml')">YAML completo</button></div>
-            @if(recipeTab()==='yaml'){<div class="yaml-toolbar"><span class="muted small">Modifiche in memoria · Ctrl+Spazio per i suggerimenti del catalogo caricato</span></div><div class="recipe-editor"><mw-editor [value]="yaml()" (valueChange)="setYaml($event)" [catalog]="catalog()" label="Ricette YAML modificabili"/></div>}
-            @else{<div class="guided-content">@if(selectedStep();as step){<div class="breadcrumb">{{recipe()}} <span>›</span> Passaggio {{steps().indexOf(step)+1}}</div><h2>{{selectedDescriptor()?.displayName || step.name.split('.').pop()}}</h2><p class="mono operation-name">{{step.name}}</p><p class="description">{{selectedDescriptor()?.description || 'Le proprietà di questo passaggio provengono dalla ricetta YAML.'}}</p><div class="option-fields">@for(key of optionKeys(step);track key){<label class="option-field"><span>{{optionLabel(key)}} <code>{{key}}</code></span>@if(editable(step.values[key])){<input class="mono" [ngModel]="scalar(step.values[key])" (change)="changeOption(step,key,$any($event.target).value)" [attr.title]="optionDescription(key)" [attr.aria-label]="key">}@else{<pre class="value-preview">{{scalar(step.values[key])}}</pre>}<small>{{optionDescription(key)}}</small></label>}</div>@if(!optionKeys(step).length){<p class="muted">Questo passaggio non espone opzioni. Puoi modificarlo nel documento YAML completo.</p>}<div class="help-note">Le modifiche ai campi aggiornano il YAML. Condizioni, liste e strutture complesse si modificano nella scheda YAML completo.</div>}
-              @else{<div class="empty"><h3>Inizia dalle tue ricette</h3><p>Carica un file YAML oppure scrivi un nuovo documento nell’editor.</p><button class="secondary" (click)="recipeTab.set('yaml')">Apri editor YAML</button></div>}
-              @if(catalogError()){<div class="inline-warning"><strong>Catalogo non disponibile</strong><p>{{catalogError()}}</p><button class="quiet" (click)="refreshCatalog()">Riprova</button></div>}
-            </div>}
+  @if (stage() === 'configure') {
+    <main class="configuration">
+      <fieldset class="configuration-fields" [disabled]="configurationLocked()">
+        @if (pane() === 'repositories') {
+          <section class="page-heading">
+            <div>
+              <span class="eyebrow">01 / REPOSITORY</span>
+              <h1>Su cosa lavoriamo?</h1>
+              <p>
+                Aggiungi le cartelle da analizzare. Il contenuto originale resterà intatto durante
+                l’anteprima.
+              </p>
+            </div>
+            <button class="secondary" [disabled]="loading()" (click)="pick('directory')">
+              Sfoglia cartelle…
+            </button>
           </section>
-        </section>
-        @if(parsed().error){<div class="message error yaml-error" role="alert"><div><strong>Controlla la sintassi YAML</strong><pre>{{parsed().error}}</pre></div></div>}
-        <section class="panel parameters-panel"><div class="panel-heading"><div><h2>Parametri comuni</h2><p class="muted small">Usa nomi con prefisso migration., utilizzabili come <code>{{'${migration.nome}'}}</code>. Nessun ambiente predefinito.</p></div><button class="secondary" (click)="addParameter()">+ Aggiungi parametro</button></div>
-          @for(parameter of parameters();track $index){<div class="parameter-row"><input class="mono" [ngModel]="parameter.name" (ngModelChange)="setParameter($index,'name',$event)" placeholder="migration.endpoint" [attr.aria-label]="'Nome parametro '+($index+1)"><span>=</span><input class="mono" [ngModel]="parameter.value" (ngModelChange)="setParameter($index,'value',$event)" placeholder="nuovo.servizio.svc.cluster.local" [attr.aria-label]="'Valore parametro '+($index+1)"><button class="icon-button" [attr.aria-label]="'Elimina parametro '+($index+1)" (click)="removeParameter($index)">×</button></div>}
-          @if(!parameters().length){<p class="empty-caption">Puoi mantenere i valori di default delle ricette oppure sovrascriverli qui.</p>}
-        </section>
-        <footer class="page-footer"><button class="quiet" (click)="pane.set('repositories')">← Repository</button><div class="footer-actions"><span class="muted small">L’anteprima non modifica i file originali.</span><button class="primary" [disabled]="busy() || !roots().length || !recipe() || !!parsed().error" (click)="preview()">{{busy()?'Anteprima in corso…':'Genera anteprima'}} <span aria-hidden="true">→</span></button></div></footer>
-      }
-      @if(busy()){<section class="progress-panel" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><div><strong>Elaborazione delle cartelle</strong><p>{{job()?.progress?.message || 'Preparazione del motore OpenRewrite…'}}</p>@if(job()?.progress;as progress){<small class="mono">{{progress.root}} {{progress.path}}</small>}</div><button class="quiet" (click)="invalidate()">Interrompi attesa</button></section>}
-    </fieldset></main>
-  } @else {
-    @if(job();as result){<mw-review [jobId]="result.id" [reports]="result.reports" [roots]="roots()" (busyChange)="operationBusy.set($event)" (pendingCommitChange)="pendingCommit.set($event)" (edit)="navigate('recipes')" (rerun)="preview()"/>}
+          <section class="panel root-input">
+            <label for="root-path">Percorso del repository o della cartella</label>
+            <div class="input-row">
+              <input
+                id="root-path"
+                class="mono"
+                [ngModel]="rootPath()"
+                [disabled]="loading()"
+                (ngModelChange)="rootPath.set($event)"
+                placeholder="C:\workspace\nome-repository"
+                (keydown.enter)="addRoot()"
+              /><button
+                class="primary"
+                [disabled]="loading() || !rootPath().trim()"
+                (click)="addRoot()"
+              >
+                {{ loading() ? 'Verifica…' : 'Aggiungi' }}
+              </button>
+            </div>
+            <p class="help">
+              La ricerca considera i file .yaml e .yml. Le cartelle Git annidate vengono escluse.
+            </p>
+          </section>
+          <section class="panel repository-panel">
+            <div class="panel-heading">
+              <h2>
+                Cartelle selezionate <span class="count">{{ roots().length }}</span>
+              </h2>
+              <span class="muted small">Il gruppo è un’etichetta facoltativa per la verifica.</span>
+            </div>
+            @if (!roots().length) {
+              <div class="empty">
+                <span aria-hidden="true">▱</span>
+                <h3>Nessun repository selezionato</h3>
+                <p>Inserisci un percorso o seleziona una cartella dal tuo computer.</p>
+              </div>
+            }
+            @for (root of roots(); track root.root) {
+              <article class="repository-row">
+                <div class="repository-symbol" aria-hidden="true">⌘</div>
+                <div class="repository-info">
+                  <h3>{{ root.name }}</h3>
+                  <p class="mono path">{{ root.root }}</p>
+                  <div class="repository-meta">
+                    @if (root.git) {
+                      <span class="branch">⑂ {{ root.git.branch || 'HEAD senza branch' }}</span
+                      ><span class="mono small">{{ root.git.head.slice(0, 8) }}</span>
+                      @if (root.git.status) {
+                        <span class="badge warning">Modifiche locali</span>
+                      } @else {
+                        <span class="badge neutral">Git pulito</span>
+                      }
+                    } @else {
+                      <span class="badge neutral">Cartella senza Git</span>
+                    }
+                    <span>{{ root.yamlFiles.length }} file YAML</span>
+                  </div>
+                </div>
+                <label class="group-field"
+                  ><span>Gruppo logico</span
+                  ><input
+                    [ngModel]="root.group"
+                    (ngModelChange)="changeGroup(root.root, $event)"
+                    placeholder="Es. Servizi anagrafici"
+                    [attr.aria-label]="'Gruppo di ' + root.name" /></label
+                ><button
+                  class="icon-button"
+                  [attr.aria-label]="'Rimuovi ' + root.name"
+                  (click)="removeRoot(root.root)"
+                >
+                  ×
+                </button>
+                @if (root.git) {
+                  <mw-git-preparation
+                    class="repository-git-setup"
+                    [root]="root"
+                    [workDirectory]="workDirectory()"
+                    [disabled]="configurationLocked() || loading() || busy()"
+                    (busyChange)="operationBusy.set($event)"
+                    (prepared)="preparedRoot(root.root, $event)"
+                  />
+                }
+              </article>
+            }
+          </section>
+          <footer class="page-footer">
+            <p class="muted">
+              Puoi preparare un nuovo branch in una cartella separata per ogni repository Git.
+            </p>
+            <button class="primary" [disabled]="!roots().length" (click)="navigate('recipes')">
+              Configura le ricette <span aria-hidden="true">→</span>
+            </button>
+          </footer>
+        } @else {
+          <section class="page-heading">
+            <div>
+              <span class="eyebrow">02 / RICETTE</span>
+              <h1>Componi la migrazione</h1>
+              <p>
+                Una ricetta comune alle {{ roots().length }} cartelle selezionate, con parametri dal
+                nome libero.
+              </p>
+            </div>
+            <button class="secondary" [disabled]="!yaml()" (click)="saveRules()">
+              Esporta ricette YAML
+            </button>
+          </section>
+          <section class="panel rules-source">
+            <div class="input-row">
+              <label class="grow"
+                ><span>File delle ricette</span
+                ><input
+                  class="mono"
+                  [ngModel]="rulesPath()"
+                  [disabled]="loading()"
+                  (ngModelChange)="rulesPath.set($event)"
+                  placeholder="C:\migrazioni\recipes.yml"
+                  (keydown.enter)="loadRules()" /></label
+              ><button class="secondary" [disabled]="loading()" (click)="pick('rules')">
+                Sfoglia…</button
+              ><button
+                class="secondary"
+                [disabled]="loading() || !rulesPath().trim()"
+                (click)="loadRules()"
+              >
+                Carica</button
+              ><label class="recipe-selector"
+                ><span>Ricetta da eseguire</span
+                ><select
+                  [ngModel]="recipe()"
+                  (ngModelChange)="setRecipe($event)"
+                  [disabled]="!parsed().names.length"
+                >
+                  <option value="">Seleziona una ricetta</option>
+                  @for (name of parsed().names; track name) {
+                    <option [value]="name">{{ name }}</option>
+                  }
+                </select></label
+              >
+            </div>
+          </section>
+          <section class="recipe-workspace panel">
+            <aside class="recipe-outline">
+              <div class="panel-heading">
+                <h2>Passaggi</h2>
+                <span class="count">{{ steps().length }}</span>
+              </div>
+              <p class="outline-caption">{{ recipe() || 'Carica o scrivi una ricetta' }}</p>
+              @for (step of steps(); track step.id) {
+                <button
+                  class="step-item"
+                  [class.selected]="selectedStep().id === step.id"
+                  (click)="selectedStepId.set(step.id); recipeTab.set('guided')"
+                >
+                  <span class="step-number">{{ $index + 1 }}</span
+                  ><span
+                    ><strong>{{ step.name.split('.').pop() }}</strong
+                    ><small>{{ step.name }}</small></span
+                  >
+                </button>
+              }
+              @if (!steps().length) {
+                <p class="empty-caption">I passaggi della ricetta selezionata compariranno qui.</p>
+              }
+              <div class="outline-foot">
+                <span class="status-dot"></span> Ordine di esecuzione dall’alto
+              </div>
+            </aside>
+            <section class="recipe-detail">
+              <div class="tabs" role="tablist" aria-label="Visualizzazione delle ricette">
+                <button
+                  role="tab"
+                  [attr.aria-selected]="recipeTab() === 'guided'"
+                  (click)="recipeTab.set('guided')"
+                >
+                  Composizione guidata</button
+                ><button
+                  role="tab"
+                  [attr.aria-selected]="recipeTab() === 'yaml'"
+                  (click)="recipeTab.set('yaml')"
+                >
+                  YAML completo
+                </button>
+              </div>
+              @if (recipeTab() === 'yaml') {
+                <div class="yaml-toolbar">
+                  <span class="muted small"
+                    >Modifiche in memoria · Ctrl+Spazio per i suggerimenti del catalogo
+                    caricato</span
+                  >
+                </div>
+                <div class="recipe-editor">
+                  <mw-editor
+                    [value]="yaml()"
+                    (valueChange)="setYaml($event)"
+                    [catalog]="catalog()"
+                    label="Ricette YAML modificabili"
+                  />
+                </div>
+              } @else {
+                <div class="guided-content">
+                  @if (selectedStep(); as step) {
+                    <div class="breadcrumb">
+                      {{ recipe() }} <span>›</span> Passaggio {{ steps().indexOf(step) + 1 }}
+                    </div>
+                    <h2>{{ selectedDescriptor()?.displayName || step.name.split('.').pop() }}</h2>
+                    <p class="mono operation-name">{{ step.name }}</p>
+                    <p class="description">
+                      {{
+                        selectedDescriptor()?.description ||
+                          'Le proprietà di questo passaggio provengono dalla ricetta YAML.'
+                      }}
+                    </p>
+                    <div class="option-fields">
+                      @for (option of options(); track option.name) {
+                        <label class="option-field"
+                          ><span
+                            >{{ option.displayName }} <code>{{ option.name }}</code></span
+                          >
+                          @if (editable(step.values[option.name])) {
+                            <input
+                              class="mono"
+                              [ngModel]="scalar(step.values[option.name])"
+                              (change)="
+                                changeOption(
+                                  step,
+                                  option.name,
+                                  $any($event.target).value,
+                                  option.type
+                                )
+                              "
+                              [attr.title]="option.description"
+                              [attr.aria-label]="option.name"
+                            />
+                          } @else {
+                            <pre class="value-preview">{{ scalar(step.values[option.name]) }}</pre>
+                          }
+                          <small>{{ option.description }}</small></label
+                        >
+                      }
+                    </div>
+                    @if (!options().length) {
+                      <p class="muted">
+                        Questo passaggio non espone opzioni. Puoi modificarlo nel documento YAML
+                        completo.
+                      </p>
+                    }
+                    <div class="help-note">
+                      Le modifiche ai campi aggiornano il YAML. Condizioni, liste e strutture
+                      complesse si modificano nella scheda YAML completo.
+                    </div>
+                  } @else {
+                    <div class="empty">
+                      <h3>Inizia dalle tue ricette</h3>
+                      <p>Carica un file YAML oppure scrivi un nuovo documento nell’editor.</p>
+                      <button class="secondary" (click)="recipeTab.set('yaml')">
+                        Apri editor YAML
+                      </button>
+                    </div>
+                  }
+                  @if (catalogError()) {
+                    <div class="inline-warning">
+                      <strong>Catalogo non disponibile</strong>
+                      <p>{{ catalogError() }}</p>
+                      <button class="quiet" (click)="refreshCatalog()">Riprova</button>
+                    </div>
+                  }
+                </div>
+              }
+            </section>
+          </section>
+          @if (parsed().error) {
+            <div class="message error yaml-error" role="alert">
+              <div>
+                <strong>Controlla la sintassi YAML</strong>
+                <pre>{{ parsed().error }}</pre>
+              </div>
+            </div>
+          }
+          <section class="panel parameters-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Parametri comuni</h2>
+                <p class="muted small">
+                  Usa nomi con prefisso migration., utilizzabili come
+                  <code>{{ '${migration.nome}' }}</code
+                  >. Nessun ambiente predefinito.
+                </p>
+              </div>
+              <button class="secondary" (click)="addParameter()">+ Aggiungi parametro</button>
+            </div>
+            @for (parameter of parameters(); track $index) {
+              <div class="parameter-row">
+                <input
+                  class="mono"
+                  [ngModel]="parameter.name"
+                  (ngModelChange)="setParameter($index, 'name', $event)"
+                  placeholder="migration.endpoint"
+                  [attr.aria-label]="'Nome parametro ' + ($index + 1)"
+                /><span>=</span
+                ><input
+                  class="mono"
+                  [ngModel]="parameter.value"
+                  (ngModelChange)="setParameter($index, 'value', $event)"
+                  placeholder="nuovo.servizio.svc.cluster.local"
+                  [attr.aria-label]="'Valore parametro ' + ($index + 1)"
+                /><button
+                  class="icon-button"
+                  [attr.aria-label]="'Elimina parametro ' + ($index + 1)"
+                  (click)="removeParameter($index)"
+                >
+                  ×
+                </button>
+              </div>
+            }
+            @if (!parameters().length) {
+              <p class="empty-caption">
+                Puoi mantenere i valori predefiniti delle ricette oppure sovrascriverli qui.
+              </p>
+            }
+          </section>
+          <footer class="page-footer">
+            <button class="quiet" (click)="pane.set('repositories')">← Repository</button>
+            <div class="footer-actions">
+              <span class="muted small">L’anteprima non modifica i file originali.</span
+              ><button
+                class="primary"
+                [disabled]="busy() || !roots().length || !recipe() || !!parsed().error"
+                (click)="preview()"
+              >
+                {{ busy() ? 'Anteprima in corso…' : 'Genera anteprima' }}
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </footer>
+        }
+        @if (busy()) {
+          <section class="progress-panel" role="status" aria-live="polite">
+            <span class="spinner" aria-hidden="true"></span>
+            <div>
+              <strong>Elaborazione delle cartelle</strong>
+              <p>{{ job()?.progress?.message || 'Preparazione del motore OpenRewrite…' }}</p>
+              @if (job()?.progress; as progress) {
+                <small class="mono">{{ progress.root }} {{ progress.path }}</small>
+              }
+            </div>
+            <button class="quiet" (click)="invalidate()">Interrompi attesa</button>
+          </section>
+        }
+      </fieldset>
+    </main>
+  }
+  @if (job(); as result) {
+    @if (result.status === 'COMPLETED') {
+      <mw-review
+        [hidden]="stage() !== 'review'"
+        [jobId]="result.id"
+        [reports]="result.reports"
+        [roots]="roots()"
+        (busyChange)="operationBusy.set($event)"
+        (pendingCommitChange)="pendingCommit.set($event)"
+        (edit)="navigate('recipes')"
+        (rerun)="preview()"
+      />
+    }
   }
 }
-

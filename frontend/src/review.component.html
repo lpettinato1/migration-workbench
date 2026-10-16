@@ -1,196 +1,557 @@
 <main class="review-page">
-    <section class="page-heading">
-        <div><span class="eyebrow">03 / REVIEW</span>
-            <h1>Le modifiche, nel dettaglio</h1>
-            <p>Esamina ogni file. La marcatura “verificato” richiede una tua azione esplicita.</p></div>
-        <div class="heading-actions">
-            <button class="secondary" [disabled]="configurationLocked()" (click)="edit.emit()">Modifica ricette</button>
-            <button class="primary" (click)="exportAll()">Esporta review</button>
-        </div>
-    </section>
-    <section class="review-summary" aria-label="Riepilogo dell’anteprima">
-        <div><strong>{{ reports.length }}</strong><span>repository / cartelle</span></div>
-        <div><strong class="green">{{ countChanges() }}</strong><span>file modificati</span></div>
-        <div><strong>{{ reviewed().size }}</strong><span>file verificati</span></div>
-        <div><strong [class.amber]="countWarnings()">{{ countWarnings() }}</strong><span>avvisi</span></div>
-        <div><strong [class.red]="countErrors()">{{ countErrors() }}</strong><span>errori</span></div>
-        <p><span class="status-dot"></span> {{hasApplied()?'Modifiche applicate':'Anteprima · originali intatti'}}</p></section>
-    <section class="panel review-repositories">
-        <div class="panel-heading"><h2>Panoramica repository</h2><span class="muted small">Seleziona un repository per esplorarne i file.</span>
-        </div>
-        @for (group of groups(); track group[0]) {
-            <div class="review-group">
-                <button class="group-toggle" [attr.aria-expanded]="!collapsed().has(group[0])"
-                        (click)="toggleGroup(group[0])">
-                    <span>{{ collapsed().has(group[0]) ? '▸' : '▾' }}</span>{{ group[0] }}<span
-                        class="count">{{ group[1].length }}</span></button>@if (!collapsed().has(group[0])) {
-                <div class="repository-cards">@for (report of group[1]; track report.root) {
-                    <button class="repository-card" [class.selected]="activeReport().root===report.root"
-                            [disabled]="operationBusy()" (click)="selectReport(report)"><span
-                            class="card-title"><strong>{{ name(report.root) }}</strong>@if (isReviewed(report)) {
-                        <span class="badge success">Verificato</span>
-                    }
-                        @if (errors(report)) {
-                            <span class="badge danger">{{ errors(report) }} errori</span>
-                        }</span><span
-                            class="branch">⑂ {{ report.git?.branch || (report.git ? 'HEAD detached' : 'Senza Git') }}</span><span
-                            class="card-counts"><b>{{ changes(report) }}
-                        modifiche</b><span>{{ report.metrics.discoveredFiles }} file YAML</span>@if (warnings(report)) {
-                        <span class="amber">{{ warnings(report) }} avvisi</span>
-                    }</span></button>
-                }</div>
-            }</div>
+  <section class="page-heading">
+    <div>
+      <span class="eyebrow">03 / VERIFICA</span>
+      <h1>Le modifiche, nel dettaglio</h1>
+      <p>Esamina ogni file. La marcatura “verificato” richiede una tua azione esplicita.</p>
+    </div>
+    <div class="heading-actions">
+      <button class="secondary" [disabled]="configurationLocked()" (click)="edit.emit()">
+        Modifica ricette
+      </button>
+      <button class="primary" (click)="exportAll()">Esporta verifica</button>
+    </div>
+  </section>
+  <section class="review-summary" aria-label="Riepilogo dell’anteprima">
+    <div>
+      <strong>{{ reports.length }}</strong
+      ><span>repository / cartelle</span>
+    </div>
+    <div>
+      <strong class="green">{{ countChanges() }}</strong
+      ><span>file modificati</span>
+    </div>
+    <div>
+      <strong>{{ reviewed().size }}</strong
+      ><span>file verificati</span>
+    </div>
+    <div>
+      <strong [class.amber]="countWarnings()">{{ countWarnings() }}</strong
+      ><span>avvisi</span>
+    </div>
+    <div>
+      <strong [class.red]="countErrors()">{{ countErrors() }}</strong
+      ><span>errori</span>
+    </div>
+    <p>
+      <span class="status-dot"></span>
+      {{ hasApplied() ? 'Modifiche applicate' : 'Anteprima · originali intatti' }}
+    </p>
+  </section>
+  <section class="panel review-repositories">
+    <div class="panel-heading">
+      <h2>Panoramica repository</h2>
+      <span class="muted small">Seleziona un repository per esplorarne i file.</span>
+    </div>
+    @for (group of groups(); track group[0]) {
+      <div class="review-group">
+        <button
+          class="group-toggle"
+          [attr.aria-expanded]="!collapsed().has(group[0])"
+          (click)="toggleGroup(group[0])"
+        >
+          <span>{{ collapsed().has(group[0]) ? '▸' : '▾' }}</span
+          >{{ group[0] }}<span class="count">{{ group[1].length }}</span>
+        </button>
+        @if (!collapsed().has(group[0])) {
+          <div class="repository-cards">
+            @for (report of group[1]; track report.root) {
+              <button
+                class="repository-card"
+                [class.selected]="activeReport().root === report.root"
+                [disabled]="operationBusy()"
+                (click)="selectReport(report)"
+              >
+                <span class="card-title"
+                  ><strong>{{ name(report.root) }}</strong>
+                  @if (isReviewed(report)) {
+                    <span class="badge success">Verificato</span>
+                  }
+                  @if (errors(report)) {
+                    <span class="badge danger">{{ errors(report) }} errori</span>
+                  }</span
+                ><span class="branch"
+                  >⑂
+                  {{ report.git?.branch || (report.git ? 'HEAD senza branch' : 'Senza Git') }}</span
+                ><span class="card-counts"
+                  ><b>{{ changes(report) }} modifiche</b
+                  ><span>{{ report.metrics.discoveredFiles }} file YAML</span>
+                  @if (warnings(report)) {
+                    <span class="amber">{{ warnings(report) }} avvisi</span>
+                  }
+                </span>
+              </button>
+            }
+          </div>
         }
-    </section>
-    @if (activeReport(); as report) {
-    <section class="panel git-operations" aria-label="Operazioni sul repository selezionato">
-      <div class="panel-heading"><div><h2>Dal controllo alla migrazione</h2><p class="muted small">{{name(report.root)}} · {{report.git?.branch || 'Cartella senza Git'}}</p></div><div class="heading-actions">@if(operation(report);as state){<span class="badge" [class.success]="state.stage==='PUSHED' || state.stage==='COMMITTED'">{{stageLabels[state.stage]}}</span>}<button class="quiet" [disabled]="operationBusy()" (click)="refreshOperations()">Aggiorna stato</button></div></div>
-      <div class="operation-context"><p class="mono">{{report.root}}</p><span>{{changes(report)}} file da modificare</span>@if(operation(report)?.commit;as commit){<span>Commit <code>{{commit}}</code></span>}</div>
-      @if(operationError()){<div class="inline-error" role="alert">{{operationError()}}</div>}
-      @if(operationMessage()){<p class="operation-success" role="status">{{operationMessage()}}</p>}
-      @if(uncertainMutation()){<p class="operation-notice">L’esito dell’ultima richiesta non è verificabile. Nessuna operazione verrà ripetuta automaticamente: aggiorna lo stato per proseguire.</p>}
-      @if(!operationsLoaded()){<div class="operation-notice"><span>Lo stato delle operazioni deve essere letto dal servizio locale.</span><button class="secondary" [disabled]="operationBusy()" (click)="refreshOperations()">Aggiorna stato</button></div>}
-      @if(protectedPendingCommit()){<p class="operation-notice">Ci sono modifiche applicate a un repository Git senza commit. Crea il commit prima di cambiare configurazione o avviare una nuova migrazione.</p>}
-      <div class="operation-steps">
-        <div><span class="operation-step-number">1</span><div><h3>Conferma la review</h3><p>Verifica tutti i file modificati e conferma il riepilogo.</p></div><button class="secondary" [disabled]="!canOperate('review',report)" (click)="openConfirmation('review',report)">Conferma review…</button></div>
-        <div><span class="operation-step-number">2</span><div><h3>Applica alla cartella</h3><p>Scrive solo le modifiche dell’anteprima, dopo i controlli sugli input.</p></div><button class="secondary" [disabled]="!canOperate('apply',report)" (click)="openConfirmation('apply',report)">Applica modifiche…</button></div>
-        @if(report.git){
-          <div><span class="operation-step-number">3</span><div><h3>Crea il commit</h3><label><span class="visually-hidden">Messaggio del commit</span><input [ngModel]="commitMessage()" (ngModelChange)="commitMessage.set($event)" [disabled]="operationBusy() || operation(report)?.stage!=='APPLIED'" placeholder="Messaggio del commit" aria-label="Messaggio del commit"></label></div><button class="secondary" [disabled]="!canOperate('commit',report)" (click)="openConfirmation('commit',report)">Crea commit…</button></div>
-          <div><span class="operation-step-number">4</span><div><h3>Pubblica il branch</h3><label><span class="visually-hidden">Remote Git per il push</span><select [ngModel]="remote()" (ngModelChange)="remote.set($event)" [disabled]="operationBusy() || gitDetailsLoading() || operation(report)?.stage!=='COMMITTED'" aria-label="Remote Git per il push"><option value="">{{gitDetailsLoading()?'Lettura remote…':'Seleziona il remote'}}</option>@for(name of remoteOptions()[report.root] || [];track name){<option [value]="name">{{name}}</option>}</select></label>@if(!gitDetailsLoading() && remoteOptions()[report.root]?.length===0){<p class="muted small">Nessun remote configurato in questo repository.</p>}</div><button class="secondary" [disabled]="!canOperate('push',report)" (click)="openConfirmation('push',report)">Esegui push…</button></div>
-        }@else{<p class="muted small non-git-operation-note">Questa cartella non usa Git: il flusso termina dopo l’applicazione delle modifiche.</p>}
       </div>
-      <p class="operation-footnote">Ogni azione richiede una conferma distinta. Commit e push non vengono mai eseguiti automaticamente.</p>
-    </section>
-        <section class="review-workspace panel">
-            <aside class="file-sidebar">
-                <div class="panel-heading"><h2>{{ name(report.root) }}</h2>
-                    <button class="icon-button" aria-label="Esporta report del repository selezionato"
-                            title="Esporta report di questo repository" (click)="exportReport(report)">↓
-                    </button>
-                </div>
-                <p class="sidebar-branch">⑂ {{ report.git?.branch || 'Senza branch Git' }}</p>
-                <div class="file-filters"><input type="search" [ngModel]="search()" (ngModelChange)="search.set($event)"
-                                                 aria-label="Cerca file" placeholder="Cerca file…"><select
-                        [ngModel]="filter()" (ngModelChange)="filter.set($event)" aria-label="Filtra file per stato">
-                    <option value="changed">File modificati</option>
-                    <option value="all">Tutti i file</option>
-                    <option value="attention">Ignorati ed errori</option>
-                    <option value="unchanged">File invariati</option>
-                </select></div>
-                <p class="sidebar-caption">Raggruppamento per cartella</p>
-                <div class="file-tree">@for (directory of fileGroups(report); track directory[0]) {
-                    <details open>
-                        <summary class="directory-name">{{ directory[0] }} <span
-                                class="count">{{ directory[1].length }}</span>
-                        </summary>@for (file of directory[1]; track path(file)) {
-                        <button class="file-item" [class.selected]="activeFile(report)===file"
-                                (click)="selectFile(report,file)"><span class="file-state"
-                                                                        [attr.data-status]="file.status">{{ file.status === 'MODIFIED' ? 'M' : file.status === 'CREATED' ? 'A' : file.status === 'DELETED' ? 'D' : file.status === 'SKIPPED' ? '!' : file.status === 'ERROR' ? '×' : file.status === 'RENAMED' ? 'R' : '·' }}</span><span><strong>{{ path(file).split('/').pop() }}</strong><small>{{ status[file.status] }}</small></span>@if (reviewed().has(key(report.root, file))) {
-                            <span class="review-check" aria-label="Verificato">✓</span>
-                        }</button>
-                    }</details>
-                }
-                    @if (!visibleFiles(report).length) {
-                        <div class="empty-caption">Nessun file corrisponde al filtro.</div>
-                    }</div>
-                @if (report.diagnostics.length) {
-                    <details class="diagnostics">
-                        <summary>Messaggi del motore <span class="count">{{ report.diagnostics.length }}</span>
-                        </summary>@for (diagnostic of report.diagnostics; track $index) {
-                        <div class="diagnostic" [class.red]="diagnostic.severity==='ERROR'">
-                            <strong>{{ diagnostic.severity === 'ERROR' ? 'Errore' : diagnostic.severity === 'WARNING' ? 'Avviso' : 'Info' }}</strong>@if (diagnostic.path) {
-                            <small class="mono">{{ diagnostic.path }}</small>
-                        }<p>{{ diagnostic.message }}</p></div>
-                    }</details>
-                }
-            </aside>
-            <section class="file-detail">
-                <div class="file-detail-header">@if (activeFile(report); as file) {
-                    <div><h2>{{ path(file) }}</h2>
-                        <p><span class="badge" [class.success]="changed(file)" [class.warning]="file.status==='SKIPPED'"
-                                 [class.danger]="file.status==='ERROR'">{{ status[file.status] }}</span><span
-                                class="mono small">{{ report.git?.head?.slice(0, 8) }}</span></p>
-                    </div>@if (changed(file)) {
-                        <button [class.primary]="!reviewed().has(key(report.root,file))"
-                                [class.secondary]="reviewed().has(key(report.root,file))"
-                                [disabled]="operationBusy() || !operationsLoaded() || operation(report)?.stage!=='PREVIEW'" (click)="mark(report,file)">{{ reviewed().has(key(report.root, file)) ? '✓ Verificato' : 'Segna come verificato' }}
-                        </button>
-                    }
-                } @else {
-                    <h2>File del repository</h2>
-                }</div>
-                <div class="tabs" role="tablist" aria-label="Visualizzazione del file">
-                    <button role="tab" [attr.aria-selected]="tab()==='diff'" (click)="tab.set('diff')">Differenze
-                    </button>
-                    <button role="tab" [attr.aria-selected]="tab()==='before'" (click)="tab.set('before')">Prima ·
-                        completo
-                    </button>
-                    <button role="tab" [attr.aria-selected]="tab()==='after'" (click)="tab.set('after')">Dopo ·
-                        completo
-                    </button>
-                    <button role="tab" [attr.aria-selected]="tab()==='patch'" (click)="tab.set('patch')">Patch</button>
-                    <button role="tab" [attr.aria-selected]="tab()==='resolved'" (click)="tab.set('resolved')">Ricetta
-                        risolta
-                    </button>
-                </div>
-                @if (tab() === 'resolved') {
-                    <div class="full-editor">
-                        <mw-editor [value]="report.resolvedRecipe" [readOnly]="true"
-                                   label="Ricetta completa con parametri risolti"/>
-                    </div>
-                } @else if (activeFile(report); as file) {
-                    @if (file.status === 'SKIPPED' || file.status === 'ERROR') {
-                        <div class="file-notice">@for (diagnostic of diagnosticFor(report, file); track $index) {
-                            <p>{{ diagnostic.message }}</p>
-                        }
-                            @if (!file.before && !file.after) {
-                                <p>Il motore non ha prodotto contenuto visualizzabile per questo file.</p>
-                            }</div>
-                    }
-                    @if (tab() === 'diff') {
-                        <div class="diff-labels"><span>Prima · originale</span><span>Dopo · anteprima</span></div>
-                        <mw-diff [before]="file.before || ''" [after]="file.after || ''"/>
-                    } @else if (tab() === 'patch') {
-                        <pre class="patch-content">{{ file.diff || 'Nessuna differenza testuale per questo file.' }}</pre>
-                    } @else {
-                        <div class="full-editor">
-                            <mw-editor [value]="(tab()==='before'?file.before:file.after) || ''" [readOnly]="true"
-                                       [label]="tab()==='before'?'YAML originale completo':'YAML risultante completo'"/>
-                        </div>
-                    }
-                    @if (file.recipes.length) {
-                        <details class="applied-recipes">
-                            <summary>Ricette coinvolte <span class="count">{{ file.recipes.length }}</span>
-                            </summary>@for (recipe of file.recipes; track recipe) {
-                            <div class="mono">{{ recipe }}</div>
-                        }</details>
-                    }
-                } @else {
-                    <div class="empty"><h3>Nessun file selezionabile</h3>
-                        <p>Modifica il filtro per visualizzare i file del repository.</p></div>
-                }
-            </section>
-        </section>
-        <footer class="page-footer"><span class="muted small">{{ report.metrics.totalMillis }}
-            ms · {{ report.root }}</span>
-            <button class="secondary" [disabled]="configurationLocked()" (click)="rerun.emit()">Esegui nuova anteprima</button>
-        </footer>
     }
+  </section>
+  @if (activeReport(); as report) {
+    <section class="panel git-operations" aria-label="Operazioni sul repository selezionato">
+      <div class="panel-heading">
+        <div>
+          <h2>Dal controllo alla migrazione</h2>
+          <p class="muted small">
+            {{ name(report.root) }} · {{ report.git?.branch || 'Cartella senza Git' }}
+          </p>
+        </div>
+        <div class="heading-actions">
+          @if (operation(report); as state) {
+            <span
+              class="badge"
+              [class.success]="state.stage === 'PUSHED' || state.stage === 'COMMITTED'"
+              >{{ stageLabels[state.stage] }}</span
+            >
+          }
+          <button class="quiet" [disabled]="operationBusy()" (click)="refreshOperations()">
+            Aggiorna stato
+          </button>
+        </div>
+      </div>
+      <div class="operation-context">
+        <p class="mono">{{ report.root }}</p>
+        <span>{{ changes(report) }} file da modificare</span>
+        @if (operation(report)?.commit; as commit) {
+          <span
+            >Commit <code>{{ commit }}</code></span
+          >
+        }
+      </div>
+      @if (operationError()) {
+        <div class="inline-error" role="alert">{{ operationError() }}</div>
+      }
+      @if (operationMessage()) {
+        <p class="operation-success" role="status">{{ operationMessage() }}</p>
+      }
+      @if (uncertainMutation()) {
+        <p class="operation-notice">
+          L’esito dell’ultima richiesta non è verificabile. Nessuna operazione verrà ripetuta
+          automaticamente: aggiorna lo stato per proseguire.
+        </p>
+      }
+      @if (!operationsLoaded()) {
+        <div class="operation-notice">
+          <span>Lo stato delle operazioni deve essere letto dal servizio locale.</span
+          ><button class="secondary" [disabled]="operationBusy()" (click)="refreshOperations()">
+            Aggiorna stato
+          </button>
+        </div>
+      }
+      @if (protectedPendingCommit()) {
+        <p class="operation-notice">
+          Ci sono modifiche applicate a un repository Git senza commit. Crea il commit prima di
+          cambiare configurazione o avviare una nuova migrazione.
+        </p>
+      }
+      <div class="operation-steps">
+        <div>
+          <span class="operation-step-number">1</span>
+          <div>
+            <h3>Conferma la verifica</h3>
+            <p>Verifica tutti i file modificati e conferma il riepilogo.</p>
+          </div>
+          <button
+            class="secondary"
+            [disabled]="!canOperate('review', report)"
+            (click)="openConfirmation('review', report)"
+          >
+            Conferma verifica…
+          </button>
+        </div>
+        <div>
+          <span class="operation-step-number">2</span>
+          <div>
+            <h3>Applica alla cartella</h3>
+            <p>Scrive solo le modifiche dell’anteprima, dopo i controlli sugli input.</p>
+          </div>
+          <button
+            class="secondary"
+            [disabled]="!canOperate('apply', report)"
+            (click)="openConfirmation('apply', report)"
+          >
+            Applica modifiche…
+          </button>
+        </div>
+        @if (report.git) {
+          <div>
+            <span class="operation-step-number">3</span>
+            <div>
+              <h3>Crea il commit</h3>
+              <label
+                ><span class="visually-hidden">Messaggio del commit</span
+                ><input
+                  [ngModel]="commitMessage()"
+                  (ngModelChange)="commitMessage.set($event)"
+                  [disabled]="operationBusy() || operation(report)?.stage !== 'APPLIED'"
+                  placeholder="Messaggio del commit"
+                  aria-label="Messaggio del commit"
+              /></label>
+            </div>
+            <button
+              class="secondary"
+              [disabled]="!canOperate('commit', report)"
+              (click)="openConfirmation('commit', report)"
+            >
+              Crea commit…
+            </button>
+          </div>
+          <div>
+            <span class="operation-step-number">4</span>
+            <div>
+              <h3>Pubblica il branch</h3>
+              <label
+                ><span class="visually-hidden">Remote Git per il push</span
+                ><select
+                  [ngModel]="remote()"
+                  (ngModelChange)="remote.set($event)"
+                  [disabled]="
+                    operationBusy() ||
+                    gitDetailsLoading() ||
+                    operation(report)?.stage !== 'COMMITTED'
+                  "
+                  aria-label="Remote Git per il push"
+                >
+                  <option value="">
+                    {{ gitDetailsLoading() ? 'Lettura remote…' : 'Seleziona il remote' }}
+                  </option>
+                  @for (name of remoteOptions()[report.root] || []; track name) {
+                    <option [value]="name">{{ name }}</option>
+                  }
+                </select></label
+              >
+              @if (!gitDetailsLoading() && remoteOptions()[report.root]?.length === 0) {
+                <p class="muted small">Nessun remote configurato in questo repository.</p>
+              }
+            </div>
+            <button
+              class="secondary"
+              [disabled]="!canOperate('push', report)"
+              (click)="openConfirmation('push', report)"
+            >
+              Esegui push…
+            </button>
+          </div>
+        } @else {
+          <p class="muted small non-git-operation-note">
+            Questa cartella non usa Git: il flusso termina dopo l’applicazione delle modifiche.
+          </p>
+        }
+      </div>
+      <p class="operation-footnote">
+        Ogni azione richiede una conferma distinta. Commit e push non vengono mai eseguiti
+        automaticamente.
+      </p>
+    </section>
+    <section class="review-workspace panel">
+      <aside class="file-sidebar">
+        <div class="panel-heading">
+          <h2>{{ name(report.root) }}</h2>
+          <button
+            class="icon-button"
+            aria-label="Esporta report del repository selezionato"
+            title="Esporta report di questo repository"
+            (click)="exportReport(report)"
+          >
+            ↓
+          </button>
+        </div>
+        <p class="sidebar-branch">⑂ {{ report.git?.branch || 'Senza branch Git' }}</p>
+        <div class="file-filters">
+          <input
+            type="search"
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+            aria-label="Cerca file"
+            placeholder="Cerca file…"
+          /><select
+            [ngModel]="filter()"
+            (ngModelChange)="filter.set($event)"
+            aria-label="Filtra file per stato"
+          >
+            <option value="changed">File modificati</option>
+            <option value="all">Tutti i file</option>
+            <option value="attention">Ignorati ed errori</option>
+            <option value="unchanged">File invariati</option>
+          </select>
+        </div>
+        <p class="sidebar-caption">Raggruppamento per cartella</p>
+        <div class="file-tree">
+          @for (directory of fileGroups(report); track directory[0]) {
+            <details open>
+              <summary class="directory-name">
+                {{ directory[0] }} <span class="count">{{ directory[1].length }}</span>
+              </summary>
+              @for (file of directory[1]; track path(file)) {
+                <button
+                  class="file-item"
+                  [class.selected]="activeFile(report) === file"
+                  (click)="selectFile(report, file)"
+                >
+                  <span class="file-state" [attr.data-status]="file.status">{{
+                    file.status === 'MODIFIED'
+                      ? 'M'
+                      : file.status === 'CREATED'
+                        ? 'A'
+                        : file.status === 'DELETED'
+                          ? 'D'
+                          : file.status === 'SKIPPED'
+                            ? '!'
+                            : file.status === 'ERROR'
+                              ? '×'
+                              : file.status === 'RENAMED'
+                                ? 'R'
+                                : '·'
+                  }}</span
+                  ><span
+                    ><strong>{{ path(file).split('/').pop() }}</strong
+                    ><small>{{ status[file.status] }}</small></span
+                  >
+                  @if (reviewed().has(key(report.root, file))) {
+                    <span class="review-check" aria-label="Verificato">✓</span>
+                  }
+                </button>
+              }
+            </details>
+          }
+          @if (!visibleFiles(report).length) {
+            <div class="empty-caption">Nessun file corrisponde al filtro.</div>
+          }
+        </div>
+        @if (report.diagnostics.length) {
+          <details class="diagnostics">
+            <summary>
+              Messaggi del motore <span class="count">{{ report.diagnostics.length }}</span>
+            </summary>
+            @for (diagnostic of report.diagnostics; track $index) {
+              <div class="diagnostic" [class.red]="diagnostic.severity === 'ERROR'">
+                <strong>{{
+                  diagnostic.severity === 'ERROR'
+                    ? 'Errore'
+                    : diagnostic.severity === 'WARNING'
+                      ? 'Avviso'
+                      : 'Info'
+                }}</strong>
+                @if (diagnostic.path) {
+                  <small class="mono">{{ diagnostic.path }}</small>
+                }
+                <p>{{ diagnostic.message }}</p>
+              </div>
+            }
+          </details>
+        }
+      </aside>
+      <section class="file-detail">
+        <div class="file-detail-header">
+          @if (activeFile(report); as file) {
+            <div>
+              <h2>{{ path(file) }}</h2>
+              <p>
+                <span
+                  class="badge"
+                  [class.success]="changed(file)"
+                  [class.warning]="file.status === 'SKIPPED'"
+                  [class.danger]="file.status === 'ERROR'"
+                  >{{ status[file.status] }}</span
+                ><span class="mono small">{{ report.git?.head?.slice(0, 8) }}</span>
+              </p>
+            </div>
+            @if (changed(file)) {
+              <button
+                [class.primary]="!reviewed().has(key(report.root, file))"
+                [class.secondary]="reviewed().has(key(report.root, file))"
+                [disabled]="
+                  operationBusy() || !operationsLoaded() || operation(report)?.stage !== 'PREVIEW'
+                "
+                (click)="mark(report, file)"
+              >
+                {{
+                  reviewed().has(key(report.root, file)) ? '✓ Verificato' : 'Segna come verificato'
+                }}
+              </button>
+            }
+          } @else {
+            <h2>File del repository</h2>
+          }
+        </div>
+        <div class="tabs" role="tablist" aria-label="Visualizzazione del file">
+          <button role="tab" [attr.aria-selected]="tab() === 'diff'" (click)="tab.set('diff')">
+            Differenze
+          </button>
+          <button role="tab" [attr.aria-selected]="tab() === 'before'" (click)="tab.set('before')">
+            Prima · completo
+          </button>
+          <button role="tab" [attr.aria-selected]="tab() === 'after'" (click)="tab.set('after')">
+            Dopo · completo
+          </button>
+          <button role="tab" [attr.aria-selected]="tab() === 'patch'" (click)="tab.set('patch')">
+            Patch
+          </button>
+          <button
+            role="tab"
+            [attr.aria-selected]="tab() === 'resolved'"
+            (click)="tab.set('resolved')"
+          >
+            Ricetta risolta
+          </button>
+        </div>
+        @if (tab() === 'resolved') {
+          <div class="full-editor">
+            <mw-editor
+              [value]="report.resolvedRecipe"
+              [readOnly]="true"
+              label="Ricetta completa con parametri risolti"
+            />
+          </div>
+        } @else if (activeFile(report); as file) {
+          @if (file.status === 'SKIPPED' || file.status === 'ERROR') {
+            <div class="file-notice">
+              @for (diagnostic of diagnosticFor(report, file); track $index) {
+                <p>{{ diagnostic.message }}</p>
+              }
+              @if (!file.before && !file.after) {
+                <p>Il motore non ha prodotto contenuto visualizzabile per questo file.</p>
+              }
+            </div>
+          }
+          @if (tab() === 'diff') {
+            <div class="diff-labels">
+              <span>Prima · originale</span><span>Dopo · anteprima</span>
+            </div>
+            <mw-diff [before]="file.before || ''" [after]="file.after || ''" />
+          } @else if (tab() === 'patch') {
+            <pre class="patch-content">{{
+              file.diff || 'Nessuna differenza testuale per questo file.'
+            }}</pre>
+          } @else {
+            <div class="full-editor">
+              <mw-editor
+                [value]="(tab() === 'before' ? file.before : file.after) || ''"
+                [readOnly]="true"
+                [label]="
+                  tab() === 'before' ? 'YAML originale completo' : 'YAML risultante completo'
+                "
+              />
+            </div>
+          }
+          @if (file.recipes.length) {
+            <details class="applied-recipes">
+              <summary>
+                Ricette coinvolte <span class="count">{{ file.recipes.length }}</span>
+              </summary>
+              @for (recipe of file.recipes; track recipe) {
+                <div class="mono">{{ recipe }}</div>
+              }
+            </details>
+          }
+        } @else {
+          <div class="empty">
+            <h3>Nessun file selezionabile</h3>
+            <p>Modifica il filtro per visualizzare i file del repository.</p>
+          </div>
+        }
+      </section>
+    </section>
+    <footer class="page-footer">
+      <span class="muted small">{{ report.metrics.totalMillis }} ms · {{ report.root }}</span>
+      <button class="secondary" [disabled]="configurationLocked()" (click)="rerun.emit()">
+        Esegui nuova anteprima
+      </button>
+    </footer>
+  }
 </main>
-<dialog #operationDialog class="operation-dialog" aria-labelledby="operation-dialog-title" (cancel)="cancelConfirmation($event)">
-  @if(confirmation();as request){@if(confirmationReport();as report){
-    <h2 id="operation-dialog-title">{{operationLabels[request.kind]}}</h2>
-    <p class="muted dialog-intro">@switch(request.kind){@case('review'){Confermi di aver verificato tutte le modifiche di questo repository?}@case('apply'){Confermi la scrittura delle modifiche nella cartella selezionata?}@case('commit'){Confermi la creazione del commit con i file di questa migrazione?}@case('push'){Confermi la pubblicazione del commit sul remote selezionato?}}</p>
-    <dl class="operation-summary"><dt>Repository</dt><dd>{{name(report.root)}}</dd><dt>Cartella</dt><dd>{{report.root}}</dd><dt>Branch</dt><dd>{{operation(report)?.branch || report.git?.branch || 'Senza Git'}}</dd><dt>File modificati</dt><dd>{{changes(report)}}</dd>
-      @if(request.kind==='commit'){<dt>Messaggio</dt><dd>{{commitMessage()}}</dd>}
-      @if(request.kind==='push'){<dt>Remote</dt><dd>{{remote()}}</dd><dt>Commit</dt><dd>{{operation(report)?.commit}}</dd><dt>Destinazione</dt><dd>refs/heads/{{operation(report)?.branch || report.git?.branch}}</dd>}
-    </dl>
-    <details class="confirmation-files"><summary>File inclusi nell’operazione</summary><ul>@for(file of report.files;track path(file)){@if(changed(file)){<li><span>{{status[file.status]}}</span><code>{{path(file)}}</code></li>}}</ul></details>
-    @if(request.kind==='apply'){<p class="dialog-note">Gli input e lo stato Git vengono ricontrollati prima della scrittura. Se non coincidono con l’anteprima, l’operazione viene rifiutata.</p>}
-    @if(request.kind==='push'){<p class="dialog-note">Il push usa il branch e il commit mostrati. Non usa force e non crea automaticamente una pull request.</p>}
-    @if(operationError()){<p class="inline-error" role="alert">{{operationError()}}</p>}
-    @if(operationBusy()){<p class="operation-running" role="status"><span class="spinner" aria-hidden="true"></span> Operazione in corso. Attendi il risultato…</p>}
-    <div class="confirmation-actions"><button class="quiet" autofocus [disabled]="operationBusy()" (click)="cancelConfirmation()">Annulla</button><button class="primary" [disabled]="operationBusy() || !canOperate(request.kind,report)" (click)="performConfirmed()">{{operationBusy()?'Operazione in corso…':operationLabels[request.kind]}}</button></div>
-  }}
+<dialog
+  #operationDialog
+  class="operation-dialog"
+  aria-labelledby="operation-dialog-title"
+  (cancel)="cancelConfirmation($event)"
+>
+  @if (confirmation(); as request) {
+    @if (confirmationReport(); as report) {
+      <h2 id="operation-dialog-title">{{ operationLabels[request.kind] }}</h2>
+      <p class="muted dialog-intro">
+        @switch (request.kind) {
+          @case ('review') {
+            Confermi di aver verificato tutte le modifiche di questo repository?
+          }
+          @case ('apply') {
+            Confermi la scrittura delle modifiche nella cartella selezionata?
+          }
+          @case ('commit') {
+            Confermi la creazione del commit con i file di questa migrazione?
+          }
+          @case ('push') {
+            Confermi la pubblicazione del commit sul remote selezionato?
+          }
+        }
+      </p>
+      <dl class="operation-summary">
+        <dt>Repository</dt>
+        <dd>{{ name(report.root) }}</dd>
+        <dt>Cartella</dt>
+        <dd>{{ report.root }}</dd>
+        <dt>Branch</dt>
+        <dd>{{ operation(report)?.branch || report.git?.branch || 'Senza Git' }}</dd>
+        <dt>File modificati</dt>
+        <dd>{{ changes(report) }}</dd>
+        @if (request.kind === 'commit') {
+          <dt>Messaggio</dt>
+          <dd>{{ commitMessage() }}</dd>
+        }
+        @if (request.kind === 'push') {
+          <dt>Remote</dt>
+          <dd>{{ remote() }}</dd>
+          <dt>Commit</dt>
+          <dd>{{ operation(report)?.commit }}</dd>
+          <dt>Destinazione</dt>
+          <dd>refs/heads/{{ operation(report)?.branch || report.git?.branch }}</dd>
+        }
+      </dl>
+      <details class="confirmation-files">
+        <summary>File inclusi nell’operazione</summary>
+        <ul>
+          @for (file of report.files; track path(file)) {
+            @if (changed(file)) {
+              <li>
+                <span>{{ status[file.status] }}</span
+                ><code>{{ path(file) }}</code>
+              </li>
+            }
+          }
+        </ul>
+      </details>
+      @if (request.kind === 'apply') {
+        <p class="dialog-note">
+          Gli input e lo stato Git vengono ricontrollati prima della scrittura. Se non coincidono
+          con l’anteprima, l’operazione viene rifiutata.
+        </p>
+      }
+      @if (request.kind === 'push') {
+        <p class="dialog-note">
+          Il push usa il branch e il commit mostrati. Non usa force e non crea automaticamente una
+          pull request.
+        </p>
+      }
+      @if (operationError()) {
+        <p class="inline-error" role="alert">{{ operationError() }}</p>
+      }
+      @if (operationBusy()) {
+        <p class="operation-running" role="status">
+          <span class="spinner" aria-hidden="true"></span> Operazione in corso. Attendi il
+          risultato…
+        </p>
+      }
+      <div class="confirmation-actions">
+        <button class="quiet" autofocus [disabled]="operationBusy()" (click)="cancelConfirmation()">
+          Annulla</button
+        ><button
+          class="primary"
+          [disabled]="operationBusy() || !canOperate(request.kind, report)"
+          (click)="performConfirmed()"
+        >
+          {{ operationBusy() ? 'Operazione in corso…' : operationLabels[request.kind] }}
+        </button>
+      </div>
+    }
+  }
 </dialog>
-

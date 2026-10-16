@@ -37,7 +37,7 @@ public final class Main implements Runnable {
 
     static final class Version implements IVersionProvider {
         @Override public String[] getVersion() {
-            return new String[] {"Migration Workbench " + Preview.TOOL_VERSION + " · Java 21 · OpenRewrite " + Preview.ENGINE_VERSION};
+            return new String[] {"Migration Workbench " + Preview.TOOL_VERSION + " · Java " + Runtime.version().feature() + " · OpenRewrite " + Preview.ENGINE_VERSION};
         }
     }
 
@@ -45,7 +45,7 @@ public final class Main implements Runnable {
     static final class UiCommand implements Callable<Integer> {
         @Option(names = "--no-browser", description = "Mostra il collegamento senza aprire il browser.") boolean noBrowser;
         @Option(names = "--port", defaultValue = "0", description = "Porta locale; 0 seleziona automaticamente una porta libera.") int port;
-        @Option(names = "--directory", description = "Cartella iniziale del selettore e degli esempi.") Path directory;
+        @Option(names = "--directory", description = "Cartella iniziale del selettore.") Path directory;
         @Override public Integer call() throws Exception {
             Path base = directory == null ? Path.of("").toAbsolutePath() : directory;
             try (LocalUiServer server = LocalUiServer.start(base, port)) {

@@ -49,6 +49,17 @@
     </dependencies>
     <build>
         <finalName>migration-workbench</finalName>
+        <resources>
+            <resource>
+                <directory>frontend/dist/browser</directory>
+                <targetPath>ui</targetPath>
+            </resource>
+            <resource>
+                <directory>frontend/dist</directory>
+                <targetPath>ui</targetPath>
+                <includes><include>3rdpartylicenses.txt</include></includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
