@@ -5,7 +5,7 @@
     [attr.aria-expanded]="opened()"
     (click)="toggle()"
   >
-    {{ opened() ? '▾' : '▸' }} Branch e cartella di lavoro
+    {{ opened() ? '▾' : '▸' }} Prepara un nuovo branch
   </button>
   @if (opened()) {
     <section class="git-prepare-form" [attr.aria-label]="'Preparazione Git per ' + root.name">
@@ -39,7 +39,7 @@
               autocomplete="off"
           /></label>
           <label class="git-worktree-path"
-            ><span>Nuova cartella di lavoro</span
+            ><span>Cartella del nuovo branch</span
             ><input
               class="mono"
               [(ngModel)]="worktree"
@@ -49,12 +49,11 @@
           >
         </div>
         <p class="muted small">
-          Remote configurati: {{ git.remotes.length ? git.remotes.join(', ') : 'nessuno' }}. I
-          riferimenti elencati sono quelli già disponibili in locale.
+          Puoi scegliere un branch locale o un riferimento remoto già disponibile.
         </p>
         @if (!confirmation()) {
           <div class="git-prepare-footer">
-            <span class="muted small">Il checkout originale rimane sul suo branch.</span
+            <span class="muted small">I file del repository originale non cambiano.</span
             ><button
               class="secondary"
               [disabled]="
@@ -83,8 +82,8 @@
               <dd>{{ worktree }}</dd>
             </dl>
             <p>
-              La cartella selezionata verrà sostituita nell’elenco con il nuovo worktree.
-              L’anteprima precedente verrà invalidata.
+              La migrazione userà la nuova cartella. Dopo la preparazione sarà necessaria una nuova
+              anteprima.
             </p>
             <div class="confirmation-actions">
               <button class="quiet" [disabled]="preparing()" (click)="confirmation.set(false)">

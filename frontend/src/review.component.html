@@ -1,15 +1,14 @@
 <main class="review-page">
   <section class="page-heading">
     <div>
-      <span class="eyebrow">03 / VERIFICA</span>
-      <h1>Le modifiche, nel dettaglio</h1>
-      <p>Esamina ogni file. La marcatura “verificato” richiede una tua azione esplicita.</p>
+      <h1>Verifica delle modifiche</h1>
+      <p>Controlla i file modificati prima di applicarli.</p>
     </div>
     <div class="heading-actions">
       <button class="secondary" [disabled]="configurationLocked()" (click)="edit.emit()">
         Modifica ricette
       </button>
-      <button class="primary" (click)="exportAll()">Esporta verifica</button>
+      <button class="secondary" (click)="exportAll()">Esporta verifica</button>
     </div>
   </section>
   <section class="review-summary" aria-label="Riepilogo dell’anteprima">
@@ -34,7 +33,6 @@
       ><span>errori</span>
     </div>
     <p>
-      <span class="status-dot"></span>
       {{ hasApplied() ? 'Modifiche applicate' : 'Anteprima · originali intatti' }}
     </p>
   </section>
@@ -70,9 +68,9 @@
                   @if (errors(report)) {
                     <span class="badge danger">{{ errors(report) }} errori</span>
                   }</span
-                ><span class="branch"
-                  >⑂
-                  {{ report.git?.branch || (report.git ? 'HEAD senza branch' : 'Senza Git') }}</span
+                ><span class="branch">{{
+                  report.git?.branch || (report.git ? 'Nessun branch attivo' : 'Senza Git')
+                }}</span
                 ><span class="card-counts"
                   ><b>{{ changes(report) }} modifiche</b
                   ><span>{{ report.metrics.discoveredFiles }} file YAML</span>
@@ -91,7 +89,7 @@
     <section class="panel git-operations" aria-label="Operazioni sul repository selezionato">
       <div class="panel-heading">
         <div>
-          <h2>Dal controllo alla migrazione</h2>
+          <h2>Applica e pubblica</h2>
           <p class="muted small">
             {{ name(report.root) }} · {{ report.git?.branch || 'Cartella senza Git' }}
           </p>
@@ -132,7 +130,7 @@
       }
       @if (!operationsLoaded()) {
         <div class="operation-notice">
-          <span>Lo stato delle operazioni deve essere letto dal servizio locale.</span
+          <span>Stato delle operazioni non disponibile.</span
           ><button class="secondary" [disabled]="operationBusy()" (click)="refreshOperations()">
             Aggiorna stato
           </button>
@@ -321,7 +319,7 @@
         @if (report.diagnostics.length) {
           <details class="diagnostics">
             <summary>
-              Messaggi del motore <span class="count">{{ report.diagnostics.length }}</span>
+              Avvisi e dettagli <span class="count">{{ report.diagnostics.length }}</span>
             </summary>
             @for (diagnostic of report.diagnostics; track $index) {
               <div class="diagnostic" [class.red]="diagnostic.severity === 'ERROR'">
@@ -353,7 +351,7 @@
                   [class.warning]="file.status === 'SKIPPED'"
                   [class.danger]="file.status === 'ERROR'"
                   >{{ status[file.status] }}</span
-                ><span class="mono small">{{ report.git?.head?.slice(0, 8) }}</span>
+                >
               </p>
             </div>
             @if (changed(file)) {
@@ -410,7 +408,7 @@
                 <p>{{ diagnostic.message }}</p>
               }
               @if (!file.before && !file.after) {
-                <p>Il motore non ha prodotto contenuto visualizzabile per questo file.</p>
+                <p>Non è disponibile un’anteprima per questo file.</p>
               }
             </div>
           }
@@ -453,7 +451,7 @@
       </section>
     </section>
     <footer class="page-footer">
-      <span class="muted small">{{ report.metrics.totalMillis }} ms · {{ report.root }}</span>
+      <span class="muted small">{{ name(report.root) }}</span>
       <button class="secondary" [disabled]="configurationLocked()" (click)="rerun.emit()">
         Esegui nuova anteprima
       </button>
@@ -503,8 +501,6 @@
           <dd>{{ remote() }}</dd>
           <dt>Commit</dt>
           <dd>{{ operation(report)?.commit }}</dd>
-          <dt>Destinazione</dt>
-          <dd>refs/heads/{{ operation(report)?.branch || report.git?.branch }}</dd>
         }
       </dl>
       <details class="confirmation-files">

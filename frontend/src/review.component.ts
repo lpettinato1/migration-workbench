@@ -61,6 +61,7 @@ export class ReviewComponent implements OnChanges, OnDestroy {
   };
   private operationRevision = 0;
   private operationsEpoch = 0;
+  private gitDetailsEpoch = 0;
   readonly selectedRoot = signal('');
   readonly selectedKey = signal('');
   readonly filter = signal('changed');
@@ -136,7 +137,7 @@ export class ReviewComponent implements OnChanges, OnDestroy {
         this.uncertainMutation.set(true);
         this.pendingCommitChange.emit(true);
         this.operationError.set(
-          'Un’operazione è ancora in corso nel motore. Aggiorna lo stato prima di proseguire.',
+          'L’operazione è ancora in corso. Aggiorna lo stato prima di proseguire.',
         );
         return false;
       }
@@ -156,20 +157,28 @@ export class ReviewComponent implements OnChanges, OnDestroy {
     }
   }
   private async loadGitDetails(report: Report) {
-    if (!report.git || Object.hasOwn(this.remoteOptions(), report.root)) return;
+    const epoch = ++this.gitDetailsEpoch;
+    if (!report.git || Object.hasOwn(this.remoteOptions(), report.root)) {
+      this.gitDetailsLoading.set(false);
+      return;
+    }
     const revision = this.operationRevision;
     this.gitDetailsLoading.set(true);
     try {
       const details = await api<GitDetails>('git/details', { root: report.root });
-      if (revision === this.operationRevision)
+      if (
+        revision === this.operationRevision &&
+        (epoch === this.gitDetailsEpoch || !Object.hasOwn(this.remoteOptions(), report.root))
+      )
         this.remoteOptions.update((options) => ({ ...options, [report.root]: details.remotes }));
     } catch (error) {
-      if (revision === this.operationRevision)
+      if (revision === this.operationRevision && epoch === this.gitDetailsEpoch)
         this.operationError.set(
           error instanceof Error ? error.message : 'Impossibile leggere i remote Git.',
         );
     } finally {
-      if (revision === this.operationRevision) this.gitDetailsLoading.set(false);
+      if (revision === this.operationRevision && epoch === this.gitDetailsEpoch)
+        this.gitDetailsLoading.set(false);
     }
   }
   canOperate(kind: OperationKind, report: Report) {
@@ -289,7 +298,7 @@ export class ReviewComponent implements OnChanges, OnDestroy {
       }
       this.operationError.set('');
       this.operationMessage.set(
-        'Il servizio ha completato l’operazione. Stato recuperato: ' +
+        'Operazione completata. Stato aggiornato: ' +
           this.stageLabels[recovered.stage] +
           (recovered.commit ? ' · ' + recovered.commit : ''),
       );
@@ -361,6 +370,8 @@ export class ReviewComponent implements OnChanges, OnDestroy {
 
   selectReport(report: Report) {
     if (this.operationBusy()) return;
+    this.operationMessage.set('');
+    this.operationError.set('');
     this.selectedRoot.set(report.root);
     this.selectedKey.set('');
     this.tab.set('diff');

@@ -4,16 +4,9 @@
     href="/"
     [attr.aria-disabled]="configurationLocked()"
     (click)="$event.preventDefault(); stage() !== 'welcome' && navigate('repositories')"
-    ><span class="brand-mark" aria-hidden="true">⇄</span> Migration Workbench</a
+    >Migration Workbench</a
   >
-  <span class="top-tag">OPENREWRITE</span>
   <span class="top-spacer"></span>
-  @if (bootstrap(); as info) {
-    <span class="version"
-      >{{ info.toolVersion }} <span class="dot-divider">·</span> motore
-      {{ info.engineVersion }}</span
-    >
-  }
   @if (stage() !== 'welcome') {
     <button class="quiet" [disabled]="configurationLocked()" (click)="newSession()">
       Nuova migrazione
@@ -22,14 +15,12 @@
 </header>
 @if (error()) {
   <div class="message error" role="alert">
-    <span>!</span>
     <div>{{ error() }}</div>
     <button aria-label="Chiudi messaggio di errore" (click)="error.set('')">×</button>
   </div>
 }
 @if (notice()) {
   <div class="message info" role="status">
-    <span>i</span>
     <div>{{ notice() }}</div>
     <button aria-label="Chiudi messaggio" (click)="notice.set('')">×</button>
   </div>
@@ -37,7 +28,7 @@
 @if (stage() === 'welcome') {
   <main class="welcome">
     <h1>Nuova migrazione</h1>
-    <p>Scegli la cartella di lavoro in cui preparare i repository e i branch della migrazione.</p>
+    <p>Scegli la cartella di lavoro per questa migrazione.</p>
     <section class="panel root-input">
       <label for="work-path">Cartella di lavoro</label>
       <div class="input-row">
@@ -59,8 +50,8 @@
         </button>
       </div>
       <p class="help">
-        Una cartella unica per il lavoro della sessione. I repository da elaborare si scelgono nel
-        passaggio successivo.
+        Qui verranno preparate le cartelle dei nuovi branch. Sceglierai i repository nel passaggio
+        successivo.
       </p>
     </section>
     <div class="welcome-actions">
@@ -70,17 +61,14 @@
         (click)="begin()"
       >
         {{ loading() ? 'Verifica cartella…' : 'Inizia migrazione' }}
-        <span aria-hidden="true">→</span>
       </button>
     </div>
-    <p class="welcome-note">
-      <span class="status-dot"></span> Tutto resta sul tuo computer. La sessione vive in memoria.
-    </p>
   </main>
 } @else {
   <nav class="journey" aria-label="Passaggi della migrazione">
     <button
       [class.current]="stage() === 'configure' && pane() === 'repositories'"
+      [attr.aria-current]="stage() === 'configure' && pane() === 'repositories' ? 'step' : null"
       [disabled]="configurationLocked()"
       (click)="navigate('repositories')"
     >
@@ -89,6 +77,7 @@
     ><span aria-hidden="true">›</span>
     <button
       [class.current]="stage() === 'configure' && pane() === 'recipes'"
+      [attr.aria-current]="stage() === 'configure' && pane() === 'recipes' ? 'step' : null"
       [disabled]="configurationLocked()"
       (click)="navigate('recipes')"
     >
@@ -96,6 +85,7 @@
     ><span aria-hidden="true">›</span>
     <button
       [class.current]="stage() === 'review'"
+      [attr.aria-current]="stage() === 'review' ? 'step' : null"
       [disabled]="operationBusy() || job()?.status !== 'COMPLETED'"
       (click)="stage.set('review')"
     >
@@ -110,12 +100,8 @@
         @if (pane() === 'repositories') {
           <section class="page-heading">
             <div>
-              <span class="eyebrow">01 / REPOSITORY</span>
-              <h1>Su cosa lavoriamo?</h1>
-              <p>
-                Aggiungi le cartelle da analizzare. Il contenuto originale resterà intatto durante
-                l’anteprima.
-              </p>
+              <h1>Repository</h1>
+              <p>Aggiungi i repository da elaborare. L’anteprima non modifica i file.</p>
             </div>
             <button class="secondary" [disabled]="loading()" (click)="pick('directory')">
               Sfoglia cartelle…
@@ -153,25 +139,24 @@
             </div>
             @if (!roots().length) {
               <div class="empty">
-                <span aria-hidden="true">▱</span>
                 <h3>Nessun repository selezionato</h3>
                 <p>Inserisci un percorso o seleziona una cartella dal tuo computer.</p>
               </div>
             }
             @for (root of roots(); track root.root) {
               <article class="repository-row">
-                <div class="repository-symbol" aria-hidden="true">⌘</div>
                 <div class="repository-info">
                   <h3>{{ root.name }}</h3>
                   <p class="mono path">{{ root.root }}</p>
                   <div class="repository-meta">
                     @if (root.git) {
-                      <span class="branch">⑂ {{ root.git.branch || 'HEAD senza branch' }}</span
-                      ><span class="mono small">{{ root.git.head.slice(0, 8) }}</span>
+                      <span class="branch"
+                        >Branch: {{ root.git.branch || 'Nessun branch attivo' }}</span
+                      >
                       @if (root.git.status) {
                         <span class="badge warning">Modifiche locali</span>
                       } @else {
-                        <span class="badge neutral">Git pulito</span>
+                        <span class="badge neutral">Nessuna modifica locale</span>
                       }
                     } @else {
                       <span class="badge neutral">Cartella senza Git</span>
@@ -211,18 +196,14 @@
               Puoi preparare un nuovo branch in una cartella separata per ogni repository Git.
             </p>
             <button class="primary" [disabled]="!roots().length" (click)="navigate('recipes')">
-              Configura le ricette <span aria-hidden="true">→</span>
+              Configura le ricette
             </button>
           </footer>
         } @else {
           <section class="page-heading">
             <div>
-              <span class="eyebrow">02 / RICETTE</span>
-              <h1>Componi la migrazione</h1>
-              <p>
-                Una ricetta comune alle {{ roots().length }} cartelle selezionate, con parametri dal
-                nome libero.
-              </p>
+              <h1>Ricette e parametri</h1>
+              <p>Configura le regole per le {{ roots().length }} cartelle selezionate.</p>
             </div>
             <button class="secondary" [disabled]="!yaml()" (click)="saveRules()">
               Esporta ricette YAML
@@ -285,9 +266,7 @@
               @if (!steps().length) {
                 <p class="empty-caption">I passaggi della ricetta selezionata compariranno qui.</p>
               }
-              <div class="outline-foot">
-                <span class="status-dot"></span> Ordine di esecuzione dall’alto
-              </div>
+              <div class="outline-foot">Esecuzione dall’alto verso il basso</div>
             </aside>
             <section class="recipe-detail">
               <div class="tabs" role="tablist" aria-label="Visualizzazione delle ricette">
@@ -307,10 +286,7 @@
               </div>
               @if (recipeTab() === 'yaml') {
                 <div class="yaml-toolbar">
-                  <span class="muted small"
-                    >Modifiche in memoria · Ctrl+Spazio per i suggerimenti del catalogo
-                    caricato</span
-                  >
+                  <span class="muted small">Ctrl+Spazio per i suggerimenti</span>
                 </div>
                 <div class="recipe-editor">
                   <mw-editor
@@ -328,18 +304,18 @@
                     </div>
                     <h2>{{ selectedDescriptor()?.displayName || step.name.split('.').pop() }}</h2>
                     <p class="mono operation-name">{{ step.name }}</p>
-                    <p class="description">
-                      {{
-                        selectedDescriptor()?.description ||
-                          'Le proprietà di questo passaggio provengono dalla ricetta YAML.'
-                      }}
-                    </p>
+                    @if (selectedDescriptor()?.description; as description) {
+                      <p class="description">{{ description }}</p>
+                    }
                     <div class="option-fields">
                       @for (option of options(); track option.name) {
                         <label class="option-field"
                           ><span
-                            >{{ option.displayName }} <code>{{ option.name }}</code></span
-                          >
+                            >{{ option.displayName }}
+                            @if (option.displayName !== option.name) {
+                              <code>{{ option.name }}</code>
+                            }
+                          </span>
                           @if (editable(step.values[option.name])) {
                             <input
                               class="mono"
@@ -358,8 +334,10 @@
                           } @else {
                             <pre class="value-preview">{{ scalar(step.values[option.name]) }}</pre>
                           }
-                          <small>{{ option.description }}</small></label
-                        >
+                          @if (option.description) {
+                            <small>{{ option.description }}</small>
+                          }
+                        </label>
                       }
                     </div>
                     @if (!options().length) {
@@ -374,7 +352,7 @@
                     </div>
                   } @else {
                     <div class="empty">
-                      <h3>Inizia dalle tue ricette</h3>
+                      <h3>Nessuna ricetta</h3>
                       <p>Carica un file YAML oppure scrivi un nuovo documento nell’editor.</p>
                       <button class="secondary" (click)="recipeTab.set('yaml')">
                         Apri editor YAML
@@ -407,10 +385,10 @@
                 <p class="muted small">
                   Usa nomi con prefisso migration., utilizzabili come
                   <code>{{ '${migration.nome}' }}</code
-                  >. Nessun ambiente predefinito.
+                  >.
                 </p>
               </div>
-              <button class="secondary" (click)="addParameter()">+ Aggiungi parametro</button>
+              <button class="secondary" (click)="addParameter()">Aggiungi parametro</button>
             </div>
             @for (parameter of parameters(); track $index) {
               <div class="parameter-row">
@@ -462,7 +440,7 @@
             <span class="spinner" aria-hidden="true"></span>
             <div>
               <strong>Elaborazione delle cartelle</strong>
-              <p>{{ job()?.progress?.message || 'Preparazione del motore OpenRewrite…' }}</p>
+              <p>{{ job()?.progress?.message || 'Preparazione dell’anteprima…' }}</p>
               @if (job()?.progress; as progress) {
                 <small class="mono">{{ progress.root }} {{ progress.path }}</small>
               }

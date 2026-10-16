@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import type { OperationState, Report } from './model';
 Object.defineProperty(globalThis, 'location', {
   configurable: true,
@@ -360,4 +361,104 @@ test('Invio non avvia una seconda ispezione mentre una cartella è in caricament
     [root],
   );
   assert.equal(app.loading(), false);
+});
+
+test('scegliere un altro repository rimuove messaggi e SHA senza perdere lo stato del commit', async (t) => {
+  t.after(() => mock.restoreAll());
+  const second = { ...report, root: 'C:/repos/pagamenti-migration' };
+  const commit = 'd'.repeat(40);
+  mock.method(globalThis, 'fetch', async (path: string) => {
+    assert.ok(path.endsWith('/commit'));
+    return new Response(
+      JSON.stringify({
+        root,
+        stage: 'COMMITTED',
+        changedFiles: 1,
+        branch: report.git!.branch,
+        commit,
+      }),
+    );
+  });
+  const component = view('APPLIED');
+  component.reports = [report, second];
+  component.remoteOptions.set({ [root]: ['origin'], [second.root]: ['origin'] });
+  component.confirmation.set({ kind: 'commit', root });
+  await component.performConfirmed();
+  assert.ok(component.operationMessage().includes(commit));
+  component.operationError.set('Messaggio del repository precedente');
+  component.selectReport(second);
+  assert.equal(component.activeReport().root, second.root);
+  assert.equal(component.operationMessage(), '');
+  assert.equal(component.operationError(), '');
+  assert.equal(component.operation(report)?.stage, 'COMMITTED');
+  assert.equal(component.operation(report)?.commit, commit);
+});
+
+test('un errore Git tardivo di A non modifica errore e caricamento del repository B', async (t) => {
+  t.after(() => mock.restoreAll());
+  const second = { ...report, root: 'C:/repos/pagamenti-migration' };
+  for (const cached of [false, true]) {
+    const requests: { resolve: (response: Response) => void; reject: (error: Error) => void }[] =
+      [];
+    mock.method(globalThis, 'fetch', (path: string) => {
+      assert.equal(path, '/api/git/details');
+      return new Promise<Response>((resolve, reject) => requests.push({ resolve, reject }));
+    });
+    const component = view('COMMITTED');
+    component.reports = [report, second];
+    component.remoteOptions.set(cached ? { [second.root]: ['origin-b'] } : {});
+    component.selectReport(report);
+    component.selectReport(second);
+    assert.equal(requests.length, cached ? 1 : 2);
+    assert.equal(component.gitDetailsLoading(), !cached);
+    requests[0].reject(new TypeError('Errore tardivo del repository A'));
+    await nextTurn();
+    assert.equal(component.operationError(), '');
+    assert.equal(component.gitDetailsLoading(), !cached);
+    if (!cached) {
+      requests[1].resolve(new Response(JSON.stringify({ remotes: ['origin-b'] })));
+      await nextTurn();
+    }
+    assert.equal(component.gitDetailsLoading(), false);
+    assert.deepEqual(component.remoteOptions()[second.root], ['origin-b']);
+  }
+});
+
+test('tornare rapidamente da A a B e ad A ignora la prima lettura di A', async (t) => {
+  t.after(() => mock.restoreAll());
+  const second = { ...report, root: 'C:/repos/pagamenti-migration' };
+  const requests: {
+    root: string;
+    resolve: (response: Response) => void;
+    reject: (error: Error) => void;
+  }[] = [];
+  mock.method(globalThis, 'fetch', (path: string, options: RequestInit) => {
+    assert.equal(path, '/api/git/details');
+    return new Promise<Response>((resolve, reject) => {
+      requests.push({ root: JSON.parse(options.body as string).root, resolve, reject });
+    });
+  });
+  const component = view('COMMITTED');
+  component.reports = [report, second];
+  component.remoteOptions.set({});
+  component.selectReport(report);
+  component.selectReport(second);
+  component.selectReport(report);
+  assert.deepEqual(
+    requests.map((request) => request.root),
+    [root, second.root, root],
+  );
+  requests[0].reject(new TypeError('Errore della prima lettura di A'));
+  await nextTurn();
+  assert.equal(component.operationError(), '');
+  assert.equal(component.gitDetailsLoading(), true);
+  requests[1].resolve(new Response(JSON.stringify({ remotes: ['origin-b'] })));
+  await nextTurn();
+  assert.deepEqual(component.remoteOptions()[second.root], ['origin-b']);
+  assert.equal(component.gitDetailsLoading(), true);
+  requests[2].resolve(new Response(JSON.stringify({ remotes: ['origin-a'] })));
+  await nextTurn();
+  assert.equal(component.gitDetailsLoading(), false);
+  assert.equal(component.operationError(), '');
+  assert.deepEqual(component.remoteOptions()[root], ['origin-a']);
 });

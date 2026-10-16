@@ -39,11 +39,11 @@ import { descriptorIndex } from './model';
 
 const theme = EditorView.theme(
   {
-    '&': { color: '#e0e3e9', backgroundColor: '#252629', height: '100%', fontSize: '13px' },
+    '&': { color: 'var(--text)', backgroundColor: 'var(--bg)', height: '100%', fontSize: '13px' },
     '.cm-content': {
       fontFamily: 'Consolas, "Cascadia Code", monospace',
       padding: '12px 0',
-      caretColor: '#e0e3e9',
+      caretColor: 'var(--text)',
     },
     '.cm-scroller': {
       overflow: 'auto',
@@ -51,30 +51,37 @@ const theme = EditorView.theme(
       lineHeight: '1.7',
     },
     '.cm-gutters': {
-      backgroundColor: '#252629',
-      color: '#858c99',
+      backgroundColor: 'var(--bg)',
+      color: 'var(--muted)',
       border: 'none',
       paddingRight: '10px',
     },
-    '.cm-activeLine,.cm-activeLineGutter': { backgroundColor: '#ffffff06' },
+    '.cm-activeLine,.cm-activeLineGutter': { backgroundColor: 'var(--surface)' },
     '&.cm-focused .cm-selectionBackground,.cm-selectionBackground,.cm-content ::selection': {
-      backgroundColor: '#38547a',
+      backgroundColor: 'var(--selected)',
     },
-    '.cm-cursor': { borderLeftColor: '#e0e3e9' },
-    '.cm-tooltip': { backgroundColor: '#313438', border: '1px solid #4a4e57', color: '#e0e3e9' },
-    '.cm-tooltip-autocomplete ul li[aria-selected]': { backgroundColor: '#354a6d', color: '#fff' },
+    '.cm-cursor': { borderLeftColor: 'var(--accent)' },
+    '.cm-tooltip': {
+      backgroundColor: 'var(--surface)',
+      border: '1px solid var(--line)',
+      color: 'var(--text)',
+    },
+    '.cm-tooltip-autocomplete ul li[aria-selected]': {
+      backgroundColor: 'var(--selected)',
+      color: 'var(--text)',
+    },
     '.cm-foldGutter': { width: '14px' },
   },
   { dark: true },
 );
 const highlight = syntaxHighlighting(
   HighlightStyle.define([
-    { tag: tags.propertyName, color: '#ddb785' },
-    { tag: tags.string, color: '#a5c69a' },
-    { tag: [tags.bool, tags.null, tags.number], color: '#b3a0dc' },
-    { tag: tags.comment, color: '#8a929d', fontStyle: 'italic' },
-    { tag: tags.meta, color: '#7da7ff' },
-    { tag: tags.punctuation, color: '#c3c6ce' },
+    { tag: tags.propertyName, color: '#cbb997' },
+    { tag: tags.string, color: '#b7c2aa' },
+    { tag: [tags.bool, tags.null, tags.number], color: '#c6b8ca' },
+    { tag: tags.comment, color: 'var(--muted)', fontStyle: 'italic' },
+    { tag: tags.meta, color: '#c4bbac' },
+    { tag: tags.punctuation, color: 'var(--muted)' },
   ]),
 );
 const base = () => [

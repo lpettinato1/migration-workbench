@@ -15,7 +15,7 @@ Il launcher Java avvia motore e adattatore locale, quindi apre il browser. Non e
 ## Flusso disponibile
 
 1. Scegliere la cartella di lavoro unica e avviare la migrazione. Aggiungere poi i repository locali da elaborare. Il gruppo facoltativo organizza la verifica, senza assegnare valori o ricette differenti. Cambiare un'etichetta non richiede di rigenerare l'anteprima.
-2. Per ciascun repository, aprire **Branch e cartella di lavoro**, scegliere il riferimento di partenza, il nuovo branch e una cartella esterna nuova. Confermare la preparazione: la root selezionata viene sostituita con il worktree, mentre il checkout originale mantiene branch e contenuti. I riferimenti disponibili sono quelli presenti in locale, senza fetch automatico.
+2. Per ciascun repository, aprire **Prepara un nuovo branch**, scegliere il riferimento di partenza, il nuovo branch e una cartella esterna nuova. Confermare la preparazione: la root selezionata viene sostituita con il worktree, mentre il checkout originale mantiene branch e contenuti. I riferimenti disponibili sono quelli presenti in locale, senza fetch automatico.
 3. Caricare o scrivere le ricette YAML, scegliere la composizione e impostare eventuali parametri `migration.*`. Gli ambienti sono arbitrari. Eseguire l'anteprima senza riscrivere gli input.
 4. Controllare diff e contenuti completi. Segnare esplicitamente tutti i file modificati del repository, poi confermare la verifica dal riepilogo. I segni di verifica rimangono passando alle ricette e tornando allo stesso risultato.
 5. Confermare **Applica le modifiche**: il motore ricontrolla inventario, contenuti, branch e HEAD prima di scrivere. Un'anteprima obsoleta viene rifiutata.

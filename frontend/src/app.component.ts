@@ -47,7 +47,6 @@ export class AppComponent {
     return [...new Set([...Object.keys(values), ...descriptors.keys()])].map((name) => ({
       name,
       displayName: name,
-      description: 'Opzione definita nella ricetta YAML.',
       ...descriptors.get(name),
     }));
   });
